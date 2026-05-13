@@ -62,7 +62,6 @@ def _load_per_kind(repo_root: Path, mapping: dict[str, list[str]]) -> list[dict[
 
 
 def _read_yaml(path: Path, repo_root: Path) -> dict[str, Any]:
-    # `repo_root` is reserved for Task 7, which injects __source__ for duplicate detection.
     yaml = make_yaml(base_dir=path.parent)
     try:
         raw = yaml.load(path.read_text(encoding="utf-8"))
@@ -72,8 +71,22 @@ def _read_yaml(path: Path, repo_root: Path) -> dict[str, Any]:
         raise SchemaError(f"{path}: parse error: {e}") from e
     if not isinstance(raw, dict):
         raise SchemaError(f"{path}: expected a YAML mapping at root, got {type(raw).__name__}")
+    raw["__source__"] = str(path.relative_to(repo_root))
     return raw
 
 
 def _snake_to_pascal(s: str) -> str:
     return "".join(part.capitalize() for part in s.split("_"))
+
+
+def validate_no_duplicates(raw: list[dict[str, Any]]) -> None:
+    """Raise SchemaError on any `<kind>:<name>` collision across files."""
+    seen: dict[str, str] = {}
+    for item in raw:
+        key = f"{item['kind']}:{item['name']}"
+        if key in seen:
+            raise SchemaError(
+                f"duplicate resource identity '{key}' "
+                f"(previously seen as '{seen[key]}', now also as '{item.get('__source__', '?')}')"
+            )
+        seen[key] = item.get("__source__", "?")

@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+.venv/
+.uv-cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+dist/
+build/
+*.egg-info/
+
+# user-side state (per-user dev)
+.gampan/credentials.json
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/

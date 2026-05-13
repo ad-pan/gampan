@@ -1,0 +1,18 @@
+[tools]
+python = "3.12"
+uv = "latest"
+"npm:@changesets/cli" = "latest"
+
+[tasks.test]
+run = "uv run pytest"
+description = "Run all unit + integration tests"
+
+[tasks.lint]
+run = "uv run ruff check src tests && uv run ruff format --check src tests"
+
+[tasks.typecheck]
+run = "uv run mypy src"
+
+[tasks.build]
+run = "uv run python -m nuitka --standalone --onefile --output-dir=dist src/gampan/__main__.py --output-filename=gampan"
+description = "Compile single-file gampan binary"

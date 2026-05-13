@@ -13,8 +13,14 @@ def _write(p: Path, content: str) -> None:
 def test_convention_mode_loads_native_styles(tmp_path: Path) -> None:
     _write(
         tmp_path / "native-styles" / "card.yaml",
-        "kind: NativeStyle\nname: card\nsize:\n  width: 320\n  height: 250\n  is_fluid: false\n"
-        "template_id: 1\nhtml: '<div/>'\ncss: ''\ntargeting:\n  ad_units: []\n  custom: {}\nstatus: ACTIVE\n",
+        "kind: NativeStyle\n"
+        "name: card\n"
+        "size:\n  width: 320\n  height: 250\n  is_fluid: false\n"
+        "template_id: 1\n"
+        "html: '<div/>'\n"
+        "css: ''\n"
+        "targeting:\n  ad_units: []\n  custom: {}\n"
+        "status: ACTIVE\n",
     )
     cfg = Config(network_code="000", env="dev", sources=None)
     raw = load_all(tmp_path, cfg)

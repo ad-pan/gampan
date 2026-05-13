@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from ruamel.yaml import YAML
 
 from gampan.core.errors import SchemaError
 from gampan.core.fs.refs import make_yaml

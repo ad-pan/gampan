@@ -30,7 +30,7 @@ def load_all(repo_root: Path, config: Config) -> list[dict[str, Any]]:
 
 def _load_convention(repo_root: Path) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    for kind, dirname in CONVENTION_MAP.items():
+    for dirname in CONVENTION_MAP.values():
         for yaml_path in sorted((repo_root / dirname).glob("*.yaml")):
             data = _read_yaml(yaml_path, repo_root)
             if "kind" not in data:
@@ -62,13 +62,17 @@ def _load_per_kind(repo_root: Path, mapping: dict[str, list[str]]) -> list[dict[
 
 
 def _read_yaml(path: Path, repo_root: Path) -> dict[str, Any]:
+    # `repo_root` is reserved for Task 7, which injects __source__ for duplicate detection.
     yaml = make_yaml(base_dir=path.parent)
     try:
-        return dict(yaml.load(path.read_text()))
+        raw = yaml.load(path.read_text(encoding="utf-8"))
     except SchemaError:
         raise
     except Exception as e:
         raise SchemaError(f"{path}: parse error: {e}") from e
+    if not isinstance(raw, dict):
+        raise SchemaError(f"{path}: expected a YAML mapping at root, got {type(raw).__name__}")
+    return raw
 
 
 def _snake_to_pascal(s: str) -> str:

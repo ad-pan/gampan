@@ -20,7 +20,7 @@ def build_clients(network_code: str) -> dict[str, Client]:
     resolve_credentials()  # raises AuthError if no creds
     # Concrete factories live in gam/clients/factory.py — see Task 25.
     from gampan.gam.clients.adapter import build_client_map
-    from gampan.gam.clients.factory import (  # type: ignore[import-untyped]
+    from gampan.gam.clients.factory import (
         rest_client_factory,
         soap_client_factory,
     )

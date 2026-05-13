@@ -1,0 +1,79 @@
+.github/workflows/ci.yml
+  ea76f3f7c1beddbc 1-20
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "9099f65864db846748d5b15c60d28c2d40070568",
+  "prompts": {
+    "ea76f3f7c1beddbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d17f101d-ad8d-4ec8-bdb1-a3b5faf12d93",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T03:50:52.801Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T04:52:25.229Z"
+        },
+        {
+          "id": "cmux:open",
+          "ts": "2026-04-24T04:57:27.810Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:05:30.162Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:31:23.839Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:03:27.669Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:44:29.085Z"
+        },
+        {
+          "id": "superpowers:brainstorming",
+          "ts": "2026-05-13T02:25:33.679Z"
+        },
+        {
+          "id": "superpowers:writing-plans",
+          "ts": "2026-05-13T07:15:01.300Z"
+        },
+        {
+          "id": "superpowers:subagent-driven-development",
+          "ts": "2026-05-13T07:30:20.086Z"
+        }
+      ],
+      "tool_counts": {
+        "Skill": 10,
+        "Read": 19,
+        "ToolSearch": 5,
+        "mcp__plugin_atlassian_atlassian__getJiraIssue": 6,
+        "Bash": 105,
+        "mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue": 3,
+        "mcp__plugin_atlassian_atlassian__transitionJiraIssue": 3,
+        "TaskCreate": 43,
+        "TaskUpdate": 75,
+        "AskUserQuestion": 8,
+        "WebSearch": 1,
+        "WebFetch": 2,
+        "Write": 2,
+        "Edit": 44,
+        "Agent": 55,
+        "SendMessage": 1
+      },
+      "total_additions": 20,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

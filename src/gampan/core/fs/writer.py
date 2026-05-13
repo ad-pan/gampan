@@ -1,0 +1,84 @@
+"""Write Resource models back to YAML + side files."""
+
+from __future__ import annotations
+
+import re
+from pathlib import Path
+from typing import Any
+
+from ruamel.yaml import YAML
+
+from gampan.core.protocols import Resource
+
+_KIND_TO_DIR = {
+    "NativeStyle": "native-styles",
+    "CreativeTemplate": "creative-templates",
+}
+
+
+def slugify(name: str) -> str:
+    return re.sub(r"[^a-z0-9_-]+", "-", name.lower()).strip("-")
+
+
+def write_resource(repo_root: Path, resource: Resource) -> Path:
+    """Write the YAML + any side files, returning the YAML path."""
+    dir_name = _KIND_TO_DIR[resource.kind]
+    target_dir = repo_root / dir_name
+    target_dir.mkdir(parents=True, exist_ok=True)
+    yaml_path = target_dir / f"{slugify(resource.name)}.yaml"
+
+    payload = resource.to_remote()
+    # Promote html/snippet/css to side files for editor support
+    side_files = _emit_side_files(target_dir, slugify(resource.name), payload)
+
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with yaml_path.open("w") as f:
+        yaml.dump(_to_user_yaml(resource.kind, resource.name, payload, side_files), f)
+    return yaml_path
+
+
+def _emit_side_files(dir_path: Path, slug: str, payload: dict[str, Any]) -> dict[str, Path]:
+    out: dict[str, Path] = {}
+    for field in ("htmlSnippet", "cssSnippet", "snippet"):
+        if field in payload and isinstance(payload[field], str) and len(payload[field]) > 80:
+            ext = "html" if field != "cssSnippet" else "css"
+            side = dir_path / f"{slug}.{ext}"
+            side.write_text(payload[field])
+            out[field] = side
+    return out
+
+
+def _to_user_yaml(
+    kind: str, name: str, payload: dict[str, Any], side_files: dict[str, Path]
+) -> dict[str, Any]:
+    user: dict[str, Any] = {"kind": kind, "name": name}
+    # Map back to friendly field names + reference side files
+    if kind == "NativeStyle":
+        user["size"] = {
+            "width": payload["size"]["width"],
+            "height": payload["size"]["height"],
+            "is_fluid": payload["size"]["isFluid"],
+        }
+        user["template_id"] = payload["creativeTemplateId"]
+        user["html"] = _ref_or_inline("htmlSnippet", payload, side_files)
+        user["css"] = _ref_or_inline("cssSnippet", payload, side_files)
+        user["targeting"] = {
+            "ad_units": payload["targeting"]["adUnits"],
+            "custom": payload["targeting"]["customTargeting"],
+        }
+        user["status"] = payload["status"]
+    elif kind == "CreativeTemplate":
+        user["description"] = payload.get("description", "")
+        user["type"] = payload["type"]
+        user["snippet"] = _ref_or_inline("snippet", payload, side_files)
+        user["variables"] = payload.get("variables", [])
+        user["status"] = payload["status"]
+    return user
+
+
+def _ref_or_inline(field: str, payload: dict[str, Any], side_files: dict[str, Path]) -> Any:
+    if field in side_files:
+        # Written as scalar; loader resolves via custom tag
+        return f"!file ./{side_files[field].name}"
+    return payload.get(field, "")

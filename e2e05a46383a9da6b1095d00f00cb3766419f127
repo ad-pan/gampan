@@ -1,0 +1,69 @@
+docs/specs/2026-04-28-gampan-design.md
+  ea76f3f7c1beddbc 1-496
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "e2e05a46383a9da6b1095d00f00cb3766419f127",
+  "prompts": {
+    "ea76f3f7c1beddbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d17f101d-ad8d-4ec8-bdb1-a3b5faf12d93",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T03:50:52.801Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T04:52:25.229Z"
+        },
+        {
+          "id": "cmux:open",
+          "ts": "2026-04-24T04:57:27.810Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:05:30.162Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:31:23.839Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:03:27.669Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:44:29.085Z"
+        },
+        {
+          "id": "superpowers:brainstorming",
+          "ts": "2026-05-13T02:25:33.679Z"
+        }
+      ],
+      "tool_counts": {
+        "Skill": 8,
+        "Read": 1,
+        "ToolSearch": 4,
+        "mcp__plugin_atlassian_atlassian__getJiraIssue": 6,
+        "Bash": 84,
+        "mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue": 3,
+        "mcp__plugin_atlassian_atlassian__transitionJiraIssue": 3,
+        "TaskCreate": 7,
+        "TaskUpdate": 7,
+        "AskUserQuestion": 8,
+        "WebSearch": 1,
+        "WebFetch": 1,
+        "Write": 1,
+        "Edit": 1
+      },
+      "total_additions": 1488,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

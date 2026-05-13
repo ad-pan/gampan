@@ -21,7 +21,7 @@ class Resource(Protocol):
     def to_remote(self) -> dict[str, object]: ...
 
     def checksum(self) -> str:
-        """sha256 hex over the canonical normalized representation."""
+        """Return ``sha256:<hex>`` over the canonical JSON (sort_keys=True, ensure_ascii=False)."""
         ...
 
 

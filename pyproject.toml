@@ -66,3 +66,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "RET"]
 python_version = "3.12"
 strict = true
 files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["google_auth_oauthlib.*"]
+ignore_missing_imports = true

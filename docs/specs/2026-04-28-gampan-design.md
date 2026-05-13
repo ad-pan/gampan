@@ -94,6 +94,8 @@ The `core/` ↔ `gam/` line is the future extraction boundary. v1 keeps both in 
 | Schema | pydantic v2 | YAML ↔ model validation |
 | YAML | ruamel.yaml | Round-trippable, preserves comments/order |
 | Logging | structlog + rich | Human + JSON output |
+| OAuth | google-auth-oauthlib | Browser OAuth 2.0 + device-code flow |
+| Credential store | keyring | OS keychain (macOS Keychain / Win Credential Mgr / Linux Secret Service) |
 | HTTP retry | tenacity | Exponential backoff on 5xx |
 | Tests | pytest + vcrpy | Unit + replay-based integration |
 | Binary build | nuitka | True compiler, single-file output |
@@ -113,6 +115,7 @@ gampan/
 │   │   ├── plan.py
 │   │   ├── apply.py
 │   │   ├── refresh.py
+│   │   ├── auth.py              # login, logout, status (subcommands)
 │   │   ├── info.py
 │   │   └── version.py
 │   │
@@ -138,7 +141,7 @@ gampan/
 │       ├── models/
 │       │   ├── native_style.py
 │       │   └── creative_template.py
-│       └── auth.py              # ADC bootstrap
+│       └── auth.py              # credential resolver (env / keychain / gcloud / metadata)
 │
 ├── tests/
 │   ├── unit/
@@ -296,6 +299,10 @@ Pydantic v2 models in `gam/models/` validate types, requireds, and enum values a
 | Command | Network? | Mutates | Purpose |
 |---|---|---|---|
 | `gampan init` | ❌ | local fs | Scaffold user repo (`.gampan/config.yml`, dirs) |
+| `gampan auth login` | ✅ (OAuth) | credential store | Browser-based OAuth; stores refresh token in OS keychain |
+| `gampan auth login --device-code` | ✅ (OAuth) | credential store | Device-code flow for headless / SSH environments |
+| `gampan auth logout` | ❌ | credential store | Clear stored credentials |
+| `gampan auth status` | ✅ (skippable) | nothing | Show current principal + token expiry |
 | `gampan import` | ✅ | local fs + state | Pull GAM resources into YAML files + state |
 | `gampan plan` | ✅ | nothing | Show diff (YAML ↔ GAM via state); print actions |
 | `gampan apply` | ✅ | GAM + state | Execute the plan (confirms unless `--auto-approve`) |
@@ -317,7 +324,7 @@ Pydantic v2 models in `gam/models/` validate types, requireds, and enum values a
 #### `import`
 
 ```
-ADC auth → clients/adapter:
+Resolve credentials (§7.2) → clients/adapter:
   - SOAP: NativeStyleService.getNativeStylesByStatement(*)
   - REST: networks/{n}/creativeTemplates (list)
         │
@@ -361,7 +368,7 @@ Print summary
 #### `refresh`
 
 ```
-ADC auth → list all remote resources
+Resolve credentials (§7.2) → list all remote resources
 For each state entry:
   - Re-fetch remote by gam_id
   - Update state.json checksum
@@ -399,35 +406,71 @@ State
 
 ## 7. Auth
 
-**Strategy**: Google Application Default Credentials (ADC). Zero custom auth code in gampan.
+**Goal**: zero-friction onboarding. New users should not need to install the gcloud SDK (~300MB) just to manage GAM.
 
-```
-gampan boots → ADC lookup order:
-  1. GOOGLE_APPLICATION_CREDENTIALS env var → service account JSON
-  2. `gcloud auth application-default login` → user OAuth refresh token
-  3. GCE/Cloud Run metadata server (for CI on GCP)
-```
+### 7.1 Primary path — built-in OAuth (`gampan auth login`)
 
-User onboarding (documented in README):
+Browser-based OAuth 2.0 PKCE flow, mirroring `gh auth login` / `firebase login` / `vercel login`. No external SDK required.
 
 ```bash
-# Local dev (one-time)
-gcloud auth application-default login
-
-# CI
-export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa-key.json
-
-# Sanity check
-gampan info
+$ gampan auth login
+Opening browser to https://accounts.google.com/o/oauth2/v2/auth?...
+Waiting for authentication... ✓
+Logged in as sejun@zigbang.com
+Token stored in macOS Keychain.
 ```
 
-Required GAM role: **Trafficker** or above for read; **Admin** or **Publisher** for write. Documented per-command in `docs/reference/`.
+**How it works**:
+
+- `google-auth-oauthlib` runs the OAuth 2.0 PKCE flow
+- Local HTTP server on `127.0.0.1:<random-port>` receives the callback
+- Refresh token persisted via `keyring` (OS keychain) — never written to disk in plaintext if keychain is available
+- Falls back to `~/.config/gampan/credentials.json` (XDG-compliant, mode 0600) when keychain is unavailable
+- OAuth client ID is bundled in the gampan binary (standard installed-app practice per RFC 8252; client secret is "shared", not private)
+
+**Headless / SSH**: `gampan auth login --device-code` triggers the OAuth 2.0 device-code flow. User visits a URL on any browser and enters a short code.
+
+### 7.2 Credential resolution order
+
+```
+gampan boots → resolve credentials in order:
+  1. GOOGLE_APPLICATION_CREDENTIALS env → service account JSON   (CI / automation)
+  2. gampan's own credential store (set by `gampan auth login`)  (local dev — PRIMARY)
+  3. gcloud Application Default Credentials                       (legacy fallback)
+  4. GCE / Cloud Run metadata server                              (CI on GCP)
+```
+
+Each strategy is implemented as an interchangeable credential provider behind a single `Credentials` interface — added/removed without touching the rest of the codebase.
+
+### 7.3 Onboarding by user type
+
+```bash
+# Local dev (new user — recommended, no SDK install)
+gampan auth login
+
+# CI / automation
+export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa-key.json
+
+# Existing gcloud users (no extra setup needed)
+gcloud auth application-default login   # already works via fallback
+
+# Sanity check (any method)
+gampan auth status   # or `gampan info`
+```
+
+### 7.4 GAM permission prerequisites
+
+OAuth grants access to Google API calls, but the authenticated principal **also needs network-level access in the GAM admin console** (`Admin > Access & authorization > Users` or `Service accounts`).
+
+- Required GAM role: **Trafficker** or above for read; **Admin** or **Publisher** for write.
+- Documented per-command in `docs/reference/`.
+- `gampan auth status` reports both Google identity and detected GAM network access; missing GAM-side access prints an actionable error pointing to the admin console.
 
 ## 8. Error handling
 
 | Failure | Detection | Recovery |
 |---|---|---|
-| Auth missing/expired | Pre-flight in any networked command | Message: run `gcloud auth application-default login` |
+| Auth missing/expired | Pre-flight in any networked command | Message: run `gampan auth login` (or `gampan auth login --device-code` on headless hosts) |
 | Network code mismatch | First API call → 403/404 | Print expected vs actual, exit 1 |
 | YAML invalid (schema) | Pydantic v2 at load-time | Friendly error w/ file path + line, **before** any API call |
 | Side `!file` not found | Loader resolves immediately | File path + parent YAML printed |
@@ -451,7 +494,7 @@ Required GAM role: **Trafficker** or above for read; **Admin** or **Publisher** 
 |---|---|---|
 | Unit (`tests/unit/`) | Pure logic: diff, planner, fs loader, state read/write, schema validation | pytest + pure functions |
 | Integration (`tests/integration/`) | Full command flows against fake GAM | `vcrpy` HTTP recordings (REST); googleads-python-lib mock layer (SOAP) |
-| E2E (`tests/e2e/`, opt-in via `pytest -m e2e`) | Real GAM sandbox network | Real ADC creds; CI nightly only |
+| E2E (`tests/e2e/`, opt-in via `pytest -m e2e`) | Real GAM sandbox network | Real credentials via §7.2 resolver; CI nightly only |
 
 - vcrpy cassettes committed; re-recordable with explicit flag.
 - Engine code is pure → no mocking; tests pass fake `Resource` / `Client` objects via Protocol.

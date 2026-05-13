@@ -1,0 +1,31 @@
+"""Wrap diff_resources output into a Plan with summary helpers."""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict
+
+from gampan.core.engine.diff import Action, Change, diff_resources
+from gampan.core.protocols import Resource
+
+
+class Plan(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    changes: list[Change]
+
+    @property
+    def has_pending(self) -> bool:
+        return any(c.action != Action.NO_CHANGE for c in self.changes)
+
+    def summary(self) -> dict[Action, int]:
+        out = {a: 0 for a in Action}
+        for c in self.changes:
+            out[c.action] += 1
+        return out
+
+
+def build_plan(
+    desired: list[Resource],
+    current: dict[str, tuple[str, Resource]],
+) -> Plan:
+    return Plan(changes=diff_resources(desired, current))

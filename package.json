@@ -1,0 +1,8 @@
+{
+  "name": "gampan-changesets",
+  "version": "0.0.0",
+  "private": true,
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0"
+  }
+}

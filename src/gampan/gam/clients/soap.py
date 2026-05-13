@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from gampan.core.errors import GamApiPermanentError
+from gampan.gam.clients._retry import retry_transient
 from gampan.gam.models.native_style import NativeStyle
 
 
@@ -15,6 +16,7 @@ class NativeStyleSoapClient:
         """`service` is `ad_manager_client.GetService('NativeStyleService')`."""
         self._svc = service
 
+    @retry_transient
     def list(self) -> list[tuple[str, NativeStyle]]:
         result = self._svc.getNativeStylesByStatement({"query": ""})
         out: list[tuple[str, NativeStyle]] = []
@@ -23,6 +25,7 @@ class NativeStyleSoapClient:
             out.append((str(d["id"]), NativeStyle.from_remote(d)))
         return out
 
+    @retry_transient
     def get(self, gam_id: str) -> NativeStyle:
         result = self._svc.getNativeStylesByStatement({"query": f"WHERE id = {gam_id}"})
         results = list(getattr(result, "results", []) or [])
@@ -30,15 +33,18 @@ class NativeStyleSoapClient:
             raise GamApiPermanentError(f"NativeStyle id={gam_id} not found")
         return NativeStyle.from_remote(dict(results[0]))
 
+    @retry_transient
     def create(self, resource: NativeStyle) -> str:
         created = self._svc.createNativeStyles([resource.to_remote()])
         return str(created[0]["id"])
 
+    @retry_transient
     def update(self, gam_id: str, resource: NativeStyle) -> None:
         payload = resource.to_remote()
         payload["id"] = gam_id
         self._svc.updateNativeStyles([payload])
 
+    @retry_transient
     def delete(self, gam_id: str) -> None:
         # GAM uses status archival rather than DELETE for many resources;
         # mirror that by calling the performNativeStyleAction "ArchiveNativeStyles".

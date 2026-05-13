@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from gampan.gam.clients._retry import retry_transient
 from gampan.gam.models.creative_template import CreativeTemplate
 
 
@@ -15,6 +16,7 @@ class CreativeTemplateRestClient:
         self._svc = service
         self._parent = network_path
 
+    @retry_transient
     def list(self) -> list[tuple[str, CreativeTemplate]]:
         out: list[tuple[str, CreativeTemplate]] = []
         page_token = ""
@@ -29,21 +31,25 @@ class CreativeTemplateRestClient:
                 break
         return out
 
+    @retry_transient
     def get(self, gam_id: str) -> CreativeTemplate:
         resp = self._svc.get_creative_template(name=f"{self._parent}/creativeTemplates/{gam_id}")
         return CreativeTemplate.from_remote(dict(resp))
 
+    @retry_transient
     def create(self, resource: CreativeTemplate) -> str:
         resp = self._svc.create_creative_template(
             parent=self._parent, creative_template=resource.to_remote()
         )
         return str(resp.name).rsplit("/", 1)[-1]
 
+    @retry_transient
     def update(self, gam_id: str, resource: CreativeTemplate) -> None:
         body = resource.to_remote()
         body["name"] = f"{self._parent}/creativeTemplates/{gam_id}"
         self._svc.update_creative_template(creative_template=body)
 
+    @retry_transient
     def delete(self, gam_id: str) -> None:
         # REST exposes archive; treat as delete from the user's POV.
         self._svc.archive_creative_template(name=f"{self._parent}/creativeTemplates/{gam_id}")

@@ -96,8 +96,7 @@ def _maybe_write_config(code: str, force: bool) -> None:
     existing = cfg.get("network_code")
     if existing and existing != code and not force:
         msg = (
-            f"\n.gampan/config.yml has network_code={existing!r}. "
-            f"Overwrite with {code!r}? (yes/no)"
+            f"\n.gampan/config.yml has network_code={existing!r}. Overwrite with {code!r}? (yes/no)"
         )
         confirm = typer.prompt(msg, default="no")
         if confirm.strip().lower() not in {"yes", "y"}:

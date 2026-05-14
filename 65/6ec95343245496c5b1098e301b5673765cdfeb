@@ -1,0 +1,99 @@
+src/gampan/gam/credential_store.py
+  ea76f3f7c1beddbc 1-151
+src/gampan/gam/oauth.py
+  ea76f3f7c1beddbc 1,12,100-101,105-106,110-111
+src/gampan/gam/auth.py
+  ea76f3f7c1beddbc 1,15,79-80,160-166,171-172,196-199
+src/gampan/cli/auth.py
+  ea76f3f7c1beddbc 5-6,9,27,33,35-41,47,49
+tests/unit/test_oauth.py
+  ea76f3f7c1beddbc 1,5,14-31,34-41
+tests/unit/test_credential_store.py
+  ea76f3f7c1beddbc 1-172
+tests/unit/test_cli_auth.py
+  ea76f3f7c1beddbc 3,6,11-18,26-28,30-36,40-41
+README.md
+  ea76f3f7c1beddbc 38-60
+docs/runbook-v0.1-validation.md
+  ea76f3f7c1beddbc 34,39-40,43-44
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "656ec95343245496c5b1098e301b5673765cdfeb",
+  "prompts": {
+    "ea76f3f7c1beddbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d17f101d-ad8d-4ec8-bdb1-a3b5faf12d93",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T03:50:52.801Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T04:52:25.229Z"
+        },
+        {
+          "id": "cmux:open",
+          "ts": "2026-04-24T04:57:27.810Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:05:30.162Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:31:23.839Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:03:27.669Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:44:29.085Z"
+        },
+        {
+          "id": "superpowers:brainstorming",
+          "ts": "2026-05-13T02:25:33.679Z"
+        },
+        {
+          "id": "superpowers:writing-plans",
+          "ts": "2026-05-13T07:15:01.300Z"
+        },
+        {
+          "id": "superpowers:subagent-driven-development",
+          "ts": "2026-05-13T07:30:20.086Z"
+        },
+        {
+          "id": "superpowers:finishing-a-development-branch",
+          "ts": "2026-05-13T09:22:23.855Z"
+        }
+      ],
+      "tool_counts": {
+        "Skill": 11,
+        "Read": 33,
+        "ToolSearch": 5,
+        "mcp__plugin_atlassian_atlassian__getJiraIssue": 6,
+        "Bash": 157,
+        "mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue": 3,
+        "mcp__plugin_atlassian_atlassian__transitionJiraIssue": 3,
+        "TaskCreate": 47,
+        "TaskUpdate": 92,
+        "AskUserQuestion": 12,
+        "WebSearch": 2,
+        "WebFetch": 5,
+        "Write": 2,
+        "Edit": 69,
+        "Agent": 68,
+        "SendMessage": 1
+      },
+      "total_additions": 1126,
+      "total_deletions": 0,
+      "overriden_lines": 3
+    }
+  }
+}

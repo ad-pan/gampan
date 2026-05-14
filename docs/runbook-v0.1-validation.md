@@ -289,6 +289,16 @@ All four integration tests should pass (no longer skipped). This is the offline 
 
 ---
 
+## Known limitations
+
+- **CreativeTemplate is read-only via REST in v0.1**: Google's REST API Beta exposes `list`
+  and `get` for CreativeTemplate but not `create`/`update`/`archive`. Plan/apply works for
+  NativeStyle (full SOAP CRUD); for CreativeTemplate, `gampan import` works, but
+  `gampan apply` will raise on any CREATE/UPDATE/DELETE of a CreativeTemplate. Use the GAM
+  UI for CreativeTemplate edits until v0.2 routes CreativeTemplate writes through SOAP.
+
+---
+
 ## Appendix: expected cassette filenames
 
 | Test | Cassette file |

@@ -104,6 +104,12 @@ The `.github/workflows/e2e-nightly.yml` workflow runs daily at 18:00 UTC and exe
 
 ## Known limitations (v0.1.0-alpha)
 
+- **CreativeTemplate is read-only via REST in v0.1**: Google's REST API Beta exposes `list`
+  and `get` for CreativeTemplate but not `create`/`update`/`archive`. Plan/apply works for
+  NativeStyle (full SOAP CRUD); for CreativeTemplate, `gampan import` works, but
+  `gampan apply` will raise on any CREATE/UPDATE/DELETE of a CreativeTemplate. Use the GAM
+  UI for CreativeTemplate edits until v0.2 routes CreativeTemplate writes through SOAP.
+
 - **Integration test cassettes not yet committed.** The integration test harness is fully
   scaffolded and cassette-driven tests skip gracefully when cassette files are absent, so CI
   passes today. Cassettes are recorded by following the

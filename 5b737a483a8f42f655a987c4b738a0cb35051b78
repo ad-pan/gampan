@@ -1,0 +1,21 @@
+src/gampan/core/protocols.py
+  h_5fc43fec215ff3 5,19,21
+src/gampan/gam/clients/rest.py
+  h_5fc43fec215ff3 5,7,21-22,36,41-42,44,49-51
+src/gampan/gam/clients/soap.py
+  h_5fc43fec215ff3 5,8,21,23,30,38-40,44-46
+src/gampan/gam/models/creative_template.py
+  h_5fc43fec215ff3 24
+src/gampan/gam/models/native_style.py
+  h_5fc43fec215ff3 30
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "5b737a483a8f42f655a987c4b738a0cb35051b78",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

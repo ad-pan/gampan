@@ -31,14 +31,16 @@ Google Ad Manager allows each Google account to create exactly **one** API test 
 gampan auth login
 ```
 
-A browser window opens to Google's consent screen. Approve access. Credentials are stored in the system keyring.
+A browser window opens to Google's consent screen. Approve access. Credentials are stored in `~/.config/gampan/credentials.json` (mode 0600).
 
 **Expected output** (approximately):
 
 ```
-Opening browser for Google OAuth…
-✓ Credentials stored (keyring).
+Logged in as <your-email>
+  Credentials stored at: ~/.config/gampan/credentials.json
 ```
+
+On macOS, a second paragraph is printed with the `security delete-generic-password` command to clear any stale Keychain entry left by a previous gampan version.
 
 **If it fails**: If you see a "TODO_REGISTER_OAUTH_CLIENT" error, the OAuth client has not
 been registered yet — follow [docs/oauth-client-setup.md](oauth-client-setup.md) first.

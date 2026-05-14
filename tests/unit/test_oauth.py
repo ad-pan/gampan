@@ -1,7 +1,8 @@
-"""Unit tests for gampan.gam.oauth keychain helpers and client-config loading."""
+"""Unit tests for gampan.gam.oauth credential helpers and client-config loading."""
 
 import json
 import os
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -10,23 +11,30 @@ from gampan.core.errors import AuthError
 from gampan.gam.oauth import _DEFAULT_CLIENT_ID, _load_client_config, store_credentials
 
 
-def test_store_credentials_writes_keychain() -> None:
-    with patch("gampan.gam.oauth.keyring") as kr:
-        store_credentials(email="user@example.com", refresh_token="rt-abc")
-        kr.set_password.assert_called_once()
-        args = kr.set_password.call_args.args
-        assert args[0] == "gampan"
-        payload = json.loads(args[2])
-        assert payload["email"] == "user@example.com"
-        assert payload["refresh_token"] == "rt-abc"
+def test_store_credentials_writes_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("GAMPAN_CRED_BACKEND", raising=False)
+    store_credentials(email="user@example.com", refresh_token="rt-abc")
+    cred_file = tmp_path / "gampan" / "credentials.json"
+    assert cred_file.exists()
+    payload = json.loads(cred_file.read_text())
+    assert payload["email"] == "user@example.com"
+    assert payload["refresh_token"] == "rt-abc"
+    # File must be owner-read/write only (mode 0600)
+    assert oct(cred_file.stat().st_mode)[-3:] == "600"
 
 
-def test_clear_credentials_deletes_keychain() -> None:
+def test_clear_credentials_deletes_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from gampan.gam.oauth import clear_credentials
 
-    with patch("gampan.gam.oauth.keyring") as kr:
-        clear_credentials()
-        kr.delete_password.assert_called_once_with("gampan", "default")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("GAMPAN_CRED_BACKEND", raising=False)
+    # Write first so there is something to clear.
+    store_credentials(email="user@example.com", refresh_token="rt-abc")
+    cred_file = tmp_path / "gampan" / "credentials.json"
+    assert cred_file.exists()
+    clear_credentials()
+    assert not cred_file.exists()
 
 
 def test_load_client_config_uses_baked_in_defaults() -> None:

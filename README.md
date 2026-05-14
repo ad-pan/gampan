@@ -35,6 +35,29 @@ before running `gampan auth login`.
 > replace the constants (one-time commit). Until then, `gampan auth login` exits with a
 > clear error pointing to that doc.
 
+### Credential storage
+
+After a successful `gampan auth login`, the OAuth refresh token is stored in
+`~/.config/gampan/credentials.json` (mode `0600`), following the same convention as
+`gcloud`, `gh`, `firebase`, and `vercel`.
+
+The path respects `$XDG_CONFIG_HOME` if set.
+
+To opt in to macOS Keychain storage instead (e.g. for enterprise environments that
+require it), set the environment variable before running any `gampan` command:
+
+```bash
+export GAMPAN_CRED_BACKEND=keychain
+```
+
+Users upgrading from a previous version that stored credentials in the macOS Keychain
+need to re-run `gampan auth login` once.  The post-login output will show the new file
+path and a one-liner to clean up the stale Keychain entry:
+
+```
+security delete-generic-password -s gampan
+```
+
 ## Quickstart
 
 ```bash

@@ -49,11 +49,45 @@ def test_resolver_raises_when_no_strategy_matches(monkeypatch: pytest.MonkeyPatc
 
 
 # ---------------------------------------------------------------------------
-# Strategy: KeychainStrategy
+# Strategy: KeychainStrategy (now backed by credential_store)
 # ---------------------------------------------------------------------------
 
 
-def test_keychain_strategy_sets_strategy_fields(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_keychain_strategy_sets_strategy_fields(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("GAMPAN_OAUTH_CLIENT_ID", "cid")
+    monkeypatch.setenv("GAMPAN_OAUTH_CLIENT_SECRET", "csec")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("GAMPAN_CRED_BACKEND", raising=False)
+
+    # Pre-write credentials into the file backend so KeychainStrategy can load them.
+    cred_file = tmp_path / "gampan" / "credentials.json"
+    cred_file.parent.mkdir(parents=True, exist_ok=True)
+    cred_file.write_text(json.dumps({"email": "user@example.com", "refresh_token": "rtoken123"}))
+
+    creds = KeychainStrategy().try_load()
+    assert creds is not None
+    assert creds.principal == "user@example.com"
+    assert creds._strategy == "keychain"
+    assert creds._extra["refresh_token"] == "rtoken123"
+    assert creds._extra["client_id"] == "cid"
+    assert creds._extra["client_secret"] == "csec"
+
+
+def test_keychain_strategy_returns_none_when_empty(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("GAMPAN_CRED_BACKEND", raising=False)
+    assert KeychainStrategy().try_load() is None
+
+
+def test_keychain_strategy_routes_to_keyring_when_backend_set(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GAMPAN_CRED_BACKEND=keychain routes credential_store to the keyring backend."""
+    monkeypatch.setenv("GAMPAN_CRED_BACKEND", "keychain")
     monkeypatch.setenv("GAMPAN_OAUTH_CLIENT_ID", "cid")
     monkeypatch.setenv("GAMPAN_OAUTH_CLIENT_SECRET", "csec")
     raw = json.dumps({"email": "user@example.com", "refresh_token": "rtoken123"})
@@ -63,13 +97,6 @@ def test_keychain_strategy_sets_strategy_fields(monkeypatch: pytest.MonkeyPatch)
     assert creds.principal == "user@example.com"
     assert creds._strategy == "keychain"
     assert creds._extra["refresh_token"] == "rtoken123"
-    assert creds._extra["client_id"] == "cid"
-    assert creds._extra["client_secret"] == "csec"
-
-
-def test_keychain_strategy_returns_none_when_empty() -> None:
-    with patch("keyring.get_password", return_value=None):
-        assert KeychainStrategy().try_load() is None
 
 
 # ---------------------------------------------------------------------------

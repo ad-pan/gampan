@@ -1,4 +1,4 @@
-"""Four-strategy credential resolver (env / keychain / gcloud / metadata)."""
+"""Four-strategy credential resolver (env / store / gcloud / metadata)."""
 
 from __future__ import annotations
 
@@ -11,12 +11,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-import keyring
-
 from gampan.core.errors import AuthError
+from gampan.gam import credential_store
 
-_KEYCHAIN_SERVICE = "gampan"
-_KEYCHAIN_USER = "default"
 _GAM_SCOPE = "https://www.googleapis.com/auth/admanager"
 
 # ---------------------------------------------------------------------------
@@ -79,7 +76,8 @@ class Credentials:
 
     * ``"env"``      – service-account key file referenced by
                        ``GOOGLE_APPLICATION_CREDENTIALS``.
-    * ``"keychain"`` – user OAuth refresh token stored by ``gampan auth login``.
+    * ``"keychain"`` – user OAuth refresh token stored by ``gampan auth login``
+                       (loaded from the active credential backend — file or keychain).
     * ``"gcloud"``   – Google ADC obtained via ``google.auth.default()``.
 
     ``_extra`` carries the minimal state needed for each path:
@@ -159,15 +157,20 @@ class EnvServiceAccountStrategy(Strategy):
 
 
 class KeychainStrategy(Strategy):
-    """Stores user OAuth refresh token written by `gampan auth login`."""
+    """Loads user OAuth refresh token written by `gampan auth login`.
+
+    Delegates to the active credential backend (file or keychain) via
+    :mod:`gampan.gam.credential_store`.  The name ``"keychain"`` is kept for
+    backwards compatibility with the ``_strategy`` discriminator used in
+    :class:`Credentials` and :meth:`Credentials.to_google_credentials`.
+    """
 
     name = "keychain"
 
     def try_load(self) -> Credentials | None:
-        raw = keyring.get_password(_KEYCHAIN_SERVICE, _KEYCHAIN_USER)
-        if not raw:
+        data = credential_store.load()
+        if not data:
             return None
-        data = json.loads(raw)
         refresh_token: str = data["refresh_token"]
         # Reuse the same client_id / client_secret resolution that `gampan auth login`
         # used to obtain the refresh_token in the first place — env vars override the
@@ -188,6 +191,10 @@ class KeychainStrategy(Strategy):
                 "client_secret": client_secret,
             },
         )
+
+
+# Alias kept for backwards compatibility with any direct imports.
+CredentialStoreStrategy = KeychainStrategy
 
 
 class GcloudAdcStrategy(Strategy):

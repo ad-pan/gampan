@@ -1,4 +1,4 @@
-"""Browser-PKCE and device-code OAuth flows. Persists refresh tokens to OS keychain."""
+"""Browser-PKCE and device-code OAuth flows. Persists refresh tokens via credential_store."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ import json
 import os
 import urllib.request
 
-import keyring
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 from gampan.core.errors import AuthError
+from gampan.gam import credential_store
 
 # GAM scope (renamed from .../auth/dfp in 2025; server rewrites the old one and
 # oauthlib then rejects the mismatch, so we request the new one directly).
@@ -21,9 +21,6 @@ _SCOPES = [
     "openid",
     "https://www.googleapis.com/auth/userinfo.email",
 ]
-_KEYCHAIN_SERVICE = "gampan"
-_KEYCHAIN_USER = "default"
-
 # Baked-in OAuth client for `gampan`, registered under the `ad-pan` GCP project.
 # Per RFC 8252 §8.5, installed-app client secrets are not actually secret — they
 # ship in the source. Mainstream CLIs (gcloud, gh, firebase, rclone) follow the
@@ -100,22 +97,15 @@ def _fetch_email(access_token: str) -> str:
 
 
 def store_credentials(email: str, refresh_token: str) -> None:
-    """JSON-encode email + refresh_token and write to OS keychain."""
-    keyring.set_password(
-        _KEYCHAIN_SERVICE,
-        _KEYCHAIN_USER,
-        json.dumps({"email": email, "refresh_token": refresh_token}),
-    )
+    """Persist email + refresh_token via the active credential backend."""
+    credential_store.save(email, refresh_token)
 
 
 def load_credentials() -> dict[str, str] | None:
-    """Load credentials from OS keychain; return None if not set."""
-    raw = keyring.get_password(_KEYCHAIN_SERVICE, _KEYCHAIN_USER)
-    if not raw:
-        return None
-    return json.loads(raw)  # type: ignore[no-any-return]
+    """Load credentials from the active backend; return None if not set."""
+    return credential_store.load()
 
 
 def clear_credentials() -> None:
-    """Delete stored credentials from OS keychain."""
-    keyring.delete_password(_KEYCHAIN_SERVICE, _KEYCHAIN_USER)
+    """Delete stored credentials from the active backend."""
+    credential_store.clear()

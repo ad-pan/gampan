@@ -1,0 +1,13 @@
+src/gampan/cli/import_cmd.py
+  h_5fc43fec215ff3 11
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "3026dbbe2f3f48b960399b9a93491d075a689dbf",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

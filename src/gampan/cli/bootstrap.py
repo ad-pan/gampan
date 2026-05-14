@@ -27,8 +27,9 @@ def run(
     creds = resolve_credentials()
     service = soap_bootstrap_service_factory(creds)
     network = service.makeTestNetwork()
+    # googleads/zeep SOAP responses support `__getitem__` and `in` but NOT `.get()`.
     code = str(network["networkCode"])
-    display_name = str(network.get("displayName", "(unnamed)"))
+    display_name = str(network["displayName"]) if "displayName" in network else "(unnamed)"
 
     typer.echo("✓ Test network created.")
     typer.echo(f"  Network code:  {code}")

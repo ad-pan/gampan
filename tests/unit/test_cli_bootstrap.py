@@ -69,3 +69,50 @@ def test_bootstrap_skips_config_write_with_flag(
     assert result.exit_code == 0, result.output
     # config.yml must not have changed
     assert cfg_file.read_text() == original
+
+
+def test_bootstrap_falls_back_to_getAllNetworks_when_already_associated() -> None:
+    """When the account is already associated with a network, makeTestNetwork raises
+    GOOGLE_ACCOUNT_ALREADY_ASSOCIATED_WITH_NETWORK; we should fall back to
+    getAllNetworks() and surface what the account already has access to."""
+    svc = MagicMock()
+    svc.makeTestNetwork.side_effect = Exception(
+        "[AuthenticationError.GOOGLE_ACCOUNT_ALREADY_ASSOCIATED_WITH_NETWORK @ ]"
+    )
+    svc.getAllNetworks.return_value = [
+        {"networkCode": "999000", "displayName": "Zigbang Prod"},
+    ]
+    runner = CliRunner()
+    with (
+        patch("gampan.cli.bootstrap.resolve_credentials", return_value=MagicMock()),
+        patch("gampan.cli.bootstrap.soap_bootstrap_service_factory", return_value=svc),
+    ):
+        result = runner.invoke(app, ["bootstrap-test-network", "--no-write-config"])
+    assert result.exit_code == 0, result.output
+    assert "999000" in result.output
+    assert "Zigbang Prod" in result.output
+
+
+def test_bootstrap_lists_multiple_existing_networks() -> None:
+    """With multiple existing networks, the command lists them and exits without
+    auto-picking one."""
+    svc = MagicMock()
+    svc.makeTestNetwork.side_effect = Exception(
+        "[AuthenticationError.GOOGLE_ACCOUNT_ALREADY_ASSOCIATED_WITH_NETWORK @ ]"
+    )
+    svc.getAllNetworks.return_value = [
+        {"networkCode": "111", "displayName": "Network A"},
+        {"networkCode": "222", "displayName": "Network B"},
+    ]
+    runner = CliRunner()
+    with (
+        patch("gampan.cli.bootstrap.resolve_credentials", return_value=MagicMock()),
+        patch("gampan.cli.bootstrap.soap_bootstrap_service_factory", return_value=svc),
+    ):
+        result = runner.invoke(app, ["bootstrap-test-network"])
+    assert result.exit_code == 0, result.output
+    assert "111" in result.output
+    assert "Network A" in result.output
+    assert "222" in result.output
+    assert "Network B" in result.output
+    assert "gampan init --network-code" in result.output

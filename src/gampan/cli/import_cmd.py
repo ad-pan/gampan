@@ -8,27 +8,10 @@ from pathlib import Path
 import typer
 from ruamel.yaml import YAML
 
+from gampan.cli.plan import build_clients
 from gampan.core.fs.writer import write_resource
-from gampan.core.protocols import Client
 from gampan.core.state.schema import ResourceEntry
 from gampan.core.state.store import StateStore
-from gampan.gam.auth import resolve_credentials
-
-
-def build_clients(network_code: str) -> dict[str, Client]:
-    """Resolve credentials + construct GAM clients. Patched in tests."""
-    resolve_credentials()  # raises AuthError if no creds
-    # Concrete factories live in gam/clients/factory.py — see Task 25.
-    from gampan.gam.clients.adapter import build_client_map
-    from gampan.gam.clients.factory import (
-        rest_client_factory,
-        soap_client_factory,
-    )
-
-    return build_client_map(
-        soap_factory=lambda: soap_client_factory(network_code),
-        rest_factory=lambda: rest_client_factory(network_code),
-    )
 
 
 def run(

@@ -38,7 +38,7 @@ Navigate to **APIs & Services → OAuth consent screen**.
   owns the GCP project, in which case Internal is also fine).
 - **App name**: `gampan` (or `ad-pan`).
 - **Support email** and **Developer contact email**: your own.
-- **Scopes**: add `https://www.googleapis.com/auth/dfp` (Google Ad Manager).
+- **Scopes**: add `https://www.googleapis.com/auth/admanager` (Google Ad Manager). _Note: the legacy scope name `.../auth/dfp` is still accepted but Google's server replaces it with `admanager` at consent time, causing `oauthlib` to raise a scope-mismatch error._
 - **Test users**: add your own Google account.
 - Publishing status: leave as **Testing** for v0.1. Only switch to **In production** if
   you plan to distribute gampan to users outside your Google Workspace.

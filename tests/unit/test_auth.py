@@ -120,7 +120,7 @@ def test_to_google_credentials_keychain_strategy(monkeypatch: pytest.MonkeyPatch
         client_id="cid",
         client_secret="csec",
         token_uri="https://oauth2.googleapis.com/token",
-        scopes=["https://www.googleapis.com/auth/dfp"],
+        scopes=["https://www.googleapis.com/auth/admanager"],
     )
     assert result is mock_oauth_creds
 

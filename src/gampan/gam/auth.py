@@ -17,7 +17,7 @@ from gampan.core.errors import AuthError
 
 _KEYCHAIN_SERVICE = "gampan"
 _KEYCHAIN_USER = "default"
-_GAM_SCOPE = "https://www.googleapis.com/auth/dfp"
+_GAM_SCOPE = "https://www.googleapis.com/auth/admanager"
 
 # ---------------------------------------------------------------------------
 # google.oauth2 type aliases (imported lazily to allow mocking in tests)

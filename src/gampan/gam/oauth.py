@@ -11,7 +11,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 from gampan.core.errors import AuthError
 
-_SCOPES = ["https://www.googleapis.com/auth/dfp"]  # Google Ad Manager
+# GAM scope (renamed from .../auth/dfp in 2025; server rewrites the old one and
+# oauthlib then rejects the mismatch, so we request the new one directly).
+_SCOPES = ["https://www.googleapis.com/auth/admanager"]
 _KEYCHAIN_SERVICE = "gampan"
 _KEYCHAIN_USER = "default"
 

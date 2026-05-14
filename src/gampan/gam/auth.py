@@ -75,12 +75,13 @@ class GcloudAdcStrategy(Strategy):
     name = "gcloud"
 
     def try_load(self) -> Credentials | None:
+        # Initial call verifies gcloud is installed and ADC is configured.
         try:
-            out = subprocess.check_output(
+            subprocess.check_output(
                 ["gcloud", "auth", "application-default", "print-access-token"],
                 stderr=subprocess.DEVNULL,
                 text=True,
-            ).strip()
+            )
         except (FileNotFoundError, subprocess.CalledProcessError):
             return None
 
@@ -94,7 +95,14 @@ class GcloudAdcStrategy(Strategy):
         except (FileNotFoundError, subprocess.CalledProcessError):
             principal = "unknown@gcloud-adc"
 
-        return Credentials(principal=principal, _token_provider=lambda: out)
+        def _get_token() -> str:
+            return subprocess.check_output(
+                ["gcloud", "auth", "application-default", "print-access-token"],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()
+
+        return Credentials(principal=principal, _token_provider=_get_token)
 
 
 def resolve_credentials(strategies: list[Strategy] | None = None) -> Credentials:

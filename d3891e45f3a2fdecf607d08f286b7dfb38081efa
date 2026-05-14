@@ -1,0 +1,13 @@
+src/gampan/gam/auth.py
+  h_5fc43fec215ff3 78,80,84,98-105
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "d3891e45f3a2fdecf607d08f286b7dfb38081efa",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

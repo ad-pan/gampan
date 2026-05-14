@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from gampan.core.errors import GamApiPermanentError
+from gampan.core.protocols import Resource
 from gampan.gam.clients._retry import retry_transient
 from gampan.gam.models.native_style import NativeStyle
 
@@ -17,16 +18,16 @@ class NativeStyleSoapClient:
         self._svc = service
 
     @retry_transient
-    def list(self) -> list[tuple[str, NativeStyle]]:
+    def list(self) -> list[tuple[str, Resource]]:
         result = self._svc.getNativeStylesByStatement({"query": ""})
-        out: list[tuple[str, NativeStyle]] = []
+        out: list[tuple[str, Resource]] = []
         for raw in getattr(result, "results", []) or []:
             d = dict(raw)
             out.append((str(d["id"]), NativeStyle.from_remote(d)))
         return out
 
     @retry_transient
-    def get(self, gam_id: str) -> NativeStyle:
+    def get(self, gam_id: str) -> Resource:
         result = self._svc.getNativeStylesByStatement({"query": f"WHERE id = {gam_id}"})
         results = list(getattr(result, "results", []) or [])
         if not results:
@@ -34,13 +35,15 @@ class NativeStyleSoapClient:
         return NativeStyle.from_remote(dict(results[0]))
 
     @retry_transient
-    def create(self, resource: NativeStyle) -> str:
-        created = self._svc.createNativeStyles([resource.to_remote()])
+    def create(self, resource: Resource) -> str:
+        ns = cast(NativeStyle, resource)
+        created = self._svc.createNativeStyles([ns.to_remote()])
         return str(created[0]["id"])
 
     @retry_transient
-    def update(self, gam_id: str, resource: NativeStyle) -> None:
-        payload = resource.to_remote()
+    def update(self, gam_id: str, resource: Resource) -> None:
+        ns = cast(NativeStyle, resource)
+        payload = ns.to_remote()
         payload["id"] = gam_id
         self._svc.updateNativeStyles([payload])
 

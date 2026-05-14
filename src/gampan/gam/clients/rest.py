@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
+from gampan.core.protocols import Resource
 from gampan.gam.clients._retry import retry_transient
 from gampan.gam.models.creative_template import CreativeTemplate
 
@@ -17,8 +18,8 @@ class CreativeTemplateRestClient:
         self._parent = network_path
 
     @retry_transient
-    def list(self) -> list[tuple[str, CreativeTemplate]]:
-        out: list[tuple[str, CreativeTemplate]] = []
+    def list(self) -> list[tuple[str, Resource]]:
+        out: list[tuple[str, Resource]] = []
         page_token = ""
         while True:
             resp = self._svc.list_creative_templates(parent=self._parent, page_token=page_token)
@@ -32,20 +33,22 @@ class CreativeTemplateRestClient:
         return out
 
     @retry_transient
-    def get(self, gam_id: str) -> CreativeTemplate:
+    def get(self, gam_id: str) -> Resource:
         resp = self._svc.get_creative_template(name=f"{self._parent}/creativeTemplates/{gam_id}")
         return CreativeTemplate.from_remote(dict(resp))
 
     @retry_transient
-    def create(self, resource: CreativeTemplate) -> str:
+    def create(self, resource: Resource) -> str:
+        ct = cast(CreativeTemplate, resource)
         resp = self._svc.create_creative_template(
-            parent=self._parent, creative_template=resource.to_remote()
+            parent=self._parent, creative_template=ct.to_remote()
         )
         return str(resp.name).rsplit("/", 1)[-1]
 
     @retry_transient
-    def update(self, gam_id: str, resource: CreativeTemplate) -> None:
-        body = resource.to_remote()
+    def update(self, gam_id: str, resource: Resource) -> None:
+        ct = cast(CreativeTemplate, resource)
+        body = ct.to_remote()
         body["name"] = f"{self._parent}/creativeTemplates/{gam_id}"
         self._svc.update_creative_template(creative_template=body)
 

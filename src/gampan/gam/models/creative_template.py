@@ -21,7 +21,7 @@ class TemplateVariable(BaseModel):
 class CreativeTemplate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: ClassVar[Literal["CreativeTemplate"]] = "CreativeTemplate"
+    kind: ClassVar[str] = "CreativeTemplate"
 
     name: str
     description: str = ""

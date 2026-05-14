@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Protocol, runtime_checkable
+from typing import Any, ClassVar, Protocol, Self, runtime_checkable
 
 
 @runtime_checkable
@@ -16,9 +16,9 @@ class Resource(Protocol):
     name: str
 
     @classmethod
-    def from_remote(cls, data: dict[str, object]) -> Resource: ...
+    def from_remote(cls, data: dict[str, Any]) -> Self: ...
 
-    def to_remote(self) -> dict[str, object]: ...
+    def to_remote(self) -> dict[str, Any]: ...
 
     def checksum(self) -> str:
         """Return ``sha256:<hex>`` over the canonical JSON (sort_keys=True, ensure_ascii=False)."""

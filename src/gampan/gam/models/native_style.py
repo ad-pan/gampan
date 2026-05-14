@@ -27,7 +27,7 @@ class NativeStyle(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    kind: ClassVar[Literal["NativeStyle"]] = "NativeStyle"
+    kind: ClassVar[str] = "NativeStyle"
 
     name: str
     size: Size

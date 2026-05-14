@@ -7,7 +7,7 @@ import os
 import urllib.request
 
 import keyring
-from google_auth_oauthlib.flow import Flow
+from google_auth_oauthlib.flow import InstalledAppFlow
 
 from gampan.core.errors import AuthError
 
@@ -60,9 +60,8 @@ def _load_client_config() -> dict:  # type: ignore[type-arg]
 def browser_login() -> tuple[str, str]:
     """Run PKCE flow via local HTTP server; return (email, refresh_token)."""
     client_config = _load_client_config()
-    flow = Flow.from_client_config(client_config, scopes=_SCOPES)
-    flow.run_local_server(port=0, prompt="consent", access_type="offline")
-    creds = flow.credentials
+    flow = InstalledAppFlow.from_client_config(client_config, scopes=_SCOPES)
+    creds = flow.run_local_server(port=0, prompt="consent", access_type="offline")
     # ID token (when present) carries email; for v0.1 use userinfo endpoint as fallback
     email = _fetch_email(creds.token)
     return email, creds.refresh_token

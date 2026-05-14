@@ -20,7 +20,7 @@ jobs:
       - uses: jdx/mise-action@v2
         with:
           version: latest
-      - run: uv sync --extra dev
+      - run: mise run deps
       - name: Write service-account credentials
         run: echo '${{ secrets.GAMPAN_E2E_SA_JSON }}' > "$GOOGLE_APPLICATION_CREDENTIALS"
       - name: Run e2e integration tests against real GAM test network

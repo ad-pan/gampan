@@ -13,8 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
-      - run: uv sync --extra dev
-      - run: make release-build
+      - run: mise run deps
+      - run: mise run release-build
       - uses: actions/upload-artifact@v4
         with:
           name: gampan-${{ matrix.os }}

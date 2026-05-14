@@ -3,16 +3,22 @@ python = "3.12"
 uv = "latest"
 "npm:@changesets/cli" = "latest"
 
+[tasks.deps]
+run = "uv sync --extra dev"
+description = "Install all project dependencies (including dev extras)"
+
 [tasks.test]
 run = "uv run pytest"
 description = "Run all unit + integration tests"
 
 [tasks.lint]
 run = "uv run ruff check src tests && uv run ruff format --check src tests"
+description = "Lint and format-check with ruff"
 
 [tasks.typecheck]
 run = "uv run mypy src"
+description = "Static type checking with mypy"
 
-[tasks.build]
-run = "uv run python -m nuitka --standalone --onefile --output-dir=dist src/gampan/__main__.py --output-filename=gampan"
-description = "Compile single-file gampan binary"
+[tasks.validate]
+run = "uv run pytest tests/integration/ -v"
+description = "Cassette-driven integration tests (offline)"

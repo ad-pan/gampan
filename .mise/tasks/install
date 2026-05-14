@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#MISE description="Copy dist/gampan to ${PREFIX:-~/.local}/bin"
+#MISE depends=["build"]
+set -euo pipefail
+
+PREFIX="${PREFIX:-$HOME/.local}"
+mkdir -p "$PREFIX/bin"
+cp dist/gampan "$PREFIX/bin/gampan"
+echo "installed $PREFIX/bin/gampan"
+echo "verify with: gampan version"

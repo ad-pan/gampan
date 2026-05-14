@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="Remove build artifacts and tool caches"
+set -euo pipefail
+rm -rf dist build *.egg-info .pytest_cache .ruff_cache .mypy_cache

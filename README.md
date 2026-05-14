@@ -63,7 +63,7 @@ See [design spec](docs/specs/2026-04-28-gampan-design.md).
 | Command | What it runs |
 |---|---|
 | `mise run test` | Unit tests (no network required) |
-| `make validate` | Cassette-driven integration tests (offline; skipped when cassettes absent) |
+| `mise run validate` | Cassette-driven integration tests (offline; skipped when cassettes absent) |
 | `uv run pytest tests/integration -v -m e2e` | Integration tests against a real GAM test network (requires secrets) |
 
 ### First-time validation against a real GAM test network

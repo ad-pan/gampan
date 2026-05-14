@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+#MISE description="LTO release build (~3x slower, smaller binary)"
+set -euo pipefail
+exec mise run build --lto=yes

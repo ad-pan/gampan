@@ -280,7 +280,7 @@ git commit -m "test(integration): add v0.1 validation cassettes"
 After committing, run:
 
 ```bash
-make validate
+mise run validate
 ```
 
 All four integration tests should pass (no longer skipped). This is the offline proof that the flow works.

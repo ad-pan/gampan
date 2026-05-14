@@ -1,0 +1,13 @@
+src/gampan/cli/bootstrap.py
+  h_5fc43fec215ff3 99
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "59d22fa91ef26c939fcc0229e408b560710d6f99",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

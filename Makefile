@@ -1,10 +1,13 @@
-.PHONY: install test lint typecheck build clean
+.PHONY: install test validate lint typecheck build clean
 
 install:
 	uv sync --extra dev
 
 test:
 	uv run pytest
+
+validate:
+	uv run pytest tests/integration/ -v
 
 lint:
 	uv run ruff check src tests

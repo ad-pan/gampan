@@ -169,8 +169,15 @@ class KeychainStrategy(Strategy):
             return None
         data = json.loads(raw)
         refresh_token: str = data["refresh_token"]
-        client_id = os.environ.get("GAMPAN_OAUTH_CLIENT_ID", "")
-        client_secret = os.environ.get("GAMPAN_OAUTH_CLIENT_SECRET", "")
+        # Reuse the same client_id / client_secret resolution that `gampan auth login`
+        # used to obtain the refresh_token in the first place — env vars override the
+        # baked-in defaults but both code paths must agree, otherwise the OAuth refresh
+        # call to Google fails with "Could not determine client ID from request."
+        from gampan.gam.oauth import _load_client_config
+
+        client_cfg = _load_client_config()["installed"]
+        client_id = client_cfg["client_id"]
+        client_secret = client_cfg["client_secret"]
         return Credentials(
             principal=data["email"],
             _token_provider=lambda: refresh_token,

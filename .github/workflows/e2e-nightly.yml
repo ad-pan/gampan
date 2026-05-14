@@ -1,0 +1,31 @@
+name: e2e-nightly
+
+on:
+  schedule:
+    - cron: "0 18 * * *"  # 18:00 UTC daily (03:00 KST)
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    # Skip gracefully on forks where secrets are absent.
+    # GitHub evaluates secrets in `if:` expressions as empty string when missing.
+    if: ${{ secrets.GAMPAN_OAUTH_CLIENT_ID != '' }}
+    env:
+      GAMPAN_OAUTH_CLIENT_ID: ${{ secrets.GAMPAN_OAUTH_CLIENT_ID }}
+      GAMPAN_OAUTH_CLIENT_SECRET: ${{ secrets.GAMPAN_OAUTH_CLIENT_SECRET }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          version: latest
+      - run: uv sync --extra dev
+      - name: Write service-account credentials
+        run: echo '${{ secrets.GAMPAN_E2E_SA_JSON }}' > "$GOOGLE_APPLICATION_CREDENTIALS"
+      - name: Run e2e integration tests against real GAM test network
+        run: uv run pytest tests/integration -v -m e2e
+        env:
+          # VCR_RECORD unset → "none" (playback); cassettes present = offline pass,
+          # cassettes absent = tests skip.  Set VCR_RECORD=once to re-record.
+          GAMPAN_E2E_NETWORK_CODE: ${{ secrets.GAMPAN_E2E_NETWORK_CODE }}

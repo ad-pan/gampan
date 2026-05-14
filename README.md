@@ -42,14 +42,34 @@ gampan apply
 
 See [design spec](docs/specs/2026-04-28-gampan-design.md).
 
+## Testing
+
+| Command | What it runs |
+|---|---|
+| `mise run test` | Unit tests (no network required) |
+| `make validate` | Cassette-driven integration tests (offline; skipped when cassettes absent) |
+| `uv run pytest tests/integration -v -m e2e` | Integration tests against a real GAM test network (requires secrets) |
+
+### First-time validation against a real GAM test network
+
+Follow the step-by-step **[v0.1 validation runbook](docs/runbook-v0.1-validation.md)** to:
+
+1. Authenticate with a Google account that has Ad Manager API access.
+2. Bootstrap a free GAM test network (`gampan bootstrap-test-network`).
+3. Run the full `plan` → `apply` → `refresh` cycle.
+4. Record VCR cassettes so the integration tests can run offline.
+
+### Nightly e2e in CI
+
+The `.github/workflows/e2e-nightly.yml` workflow runs daily at 18:00 UTC and executes the same integration tests against a real GAM test network. It is **skipped automatically** when the required secrets (`GAMPAN_OAUTH_CLIENT_ID`, `GAMPAN_OAUTH_CLIENT_SECRET`, `GAMPAN_E2E_SA_JSON`, `GAMPAN_E2E_NETWORK_CODE`) are not configured — so forks and PRs from external contributors are unaffected.
+
 ## Known limitations (v0.1.0-alpha)
 
-- **Credentials not wired through to API calls.** v0.1.0-alpha resolves credentials for
-  diagnostic purposes (`gampan info`, `gampan auth status`) but the underlying SOAP and REST
-  client libraries currently use their own auth path (googleads YAML config for SOAP,
-  google-auth ADC for REST). The resolved `Credentials` object from `gampan auth login` is
-  not yet passed through to those library calls. This gap will be closed in v0.1.1, which
-  will thread the resolved credentials into every API request.
+- **Integration test cassettes not yet committed.** The integration test harness is fully
+  scaffolded and cassette-driven tests skip gracefully when cassette files are absent, so CI
+  passes today. Cassettes are recorded by following the
+  [runbook](docs/runbook-v0.1-validation.md) above. The nightly e2e workflow exercises the
+  real-API path once secrets are configured in the repository settings.
 
 ## License
 

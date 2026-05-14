@@ -18,3 +18,14 @@ jobs:
       - run: uv run ruff format --check src tests
       - run: uv run mypy src
       - run: uv run pytest --cov=gampan --cov-report=term-missing
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          version: latest
+      - run: uv sync --extra dev
+      - run: make validate

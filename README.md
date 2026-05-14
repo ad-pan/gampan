@@ -42,6 +42,15 @@ gampan apply
 
 See [design spec](docs/specs/2026-04-28-gampan-design.md).
 
+## Known limitations (v0.1.0-alpha)
+
+- **Credentials not wired through to API calls.** v0.1.0-alpha resolves credentials for
+  diagnostic purposes (`gampan info`, `gampan auth status`) but the underlying SOAP and REST
+  client libraries currently use their own auth path (googleads YAML config for SOAP,
+  google-auth ADC for REST). The resolved `Credentials` object from `gampan auth login` is
+  not yet passed through to those library calls. This gap will be closed in v0.1.1, which
+  will thread the resolved credentials into every API request.
+
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).

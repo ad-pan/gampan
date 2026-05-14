@@ -20,7 +20,7 @@ from gampan.gam.models.native_style import NativeStyle
 
 def build_clients(network_code: str) -> dict[str, Client]:
     """Resolve credentials + construct GAM clients. Patched in tests."""
-    resolve_credentials()  # raises AuthError if no creds
+    creds = resolve_credentials()
     from gampan.gam.clients.adapter import build_client_map
     from gampan.gam.clients.factory import (
         rest_client_factory,
@@ -28,8 +28,8 @@ def build_clients(network_code: str) -> dict[str, Client]:
     )
 
     return build_client_map(
-        soap_factory=lambda: soap_client_factory(network_code),
-        rest_factory=lambda: rest_client_factory(network_code),
+        soap_factory=lambda: soap_client_factory(network_code, creds),
+        rest_factory=lambda: rest_client_factory(network_code, creds),
     )
 
 

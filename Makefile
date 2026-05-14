@@ -23,6 +23,13 @@ build:
 	  --output-filename=gampan \
 	  --include-package=googleads \
 	  --include-package=google.ads.admanager_v1 \
+	  --nofollow-import-to=mypy \
+	  --nofollow-import-to=pytest \
+	  --nofollow-import-to=_pytest \
+	  --nofollow-import-to=coverage \
+	  --nofollow-import-to=nuitka \
+	  --nofollow-import-to=vcr \
+	  --nofollow-import-to=respx \
 	  src/gampan/__main__.py
 
 clean:

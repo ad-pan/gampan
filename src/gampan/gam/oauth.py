@@ -3,29 +3,56 @@
 from __future__ import annotations
 
 import json
+import os
 import urllib.request
 
 import keyring
 from google_auth_oauthlib.flow import Flow
 
-# OAuth client registered for gampan; client_secret is "shared" per RFC 8252.
-_CLIENT_CONFIG = {
-    "installed": {
-        "client_id": "REPLACE_AT_RELEASE.apps.googleusercontent.com",
-        "client_secret": "REPLACE_AT_RELEASE",
-        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        "token_uri": "https://oauth2.googleapis.com/token",
-        "redirect_uris": ["http://127.0.0.1"],
-    }
-}
+from gampan.core.errors import AuthError
+
 _SCOPES = ["https://www.googleapis.com/auth/dfp"]  # Google Ad Manager
 _KEYCHAIN_SERVICE = "gampan"
 _KEYCHAIN_USER = "default"
 
 
+def _load_client_config() -> dict:  # type: ignore[type-arg]
+    """Build OAuth client config from environment variables.
+
+    Reads ``GAMPAN_OAUTH_CLIENT_ID`` and ``GAMPAN_OAUTH_CLIENT_SECRET``.
+    Raises :class:`~gampan.core.errors.AuthError` with setup instructions when
+    either variable is absent.
+    """
+    client_id = os.environ.get("GAMPAN_OAUTH_CLIENT_ID")
+    client_secret = os.environ.get("GAMPAN_OAUTH_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        missing = []
+        if not client_id:
+            missing.append("GAMPAN_OAUTH_CLIENT_ID")
+        if not client_secret:
+            missing.append("GAMPAN_OAUTH_CLIENT_SECRET")
+        raise AuthError(
+            f"Missing environment variable(s): {', '.join(missing)}.\n"
+            "To authenticate with gampan you must register a Google OAuth client "
+            "and export its credentials before running `gampan auth login`.\n"
+            "See https://github.com/ad-pan/gampan/blob/main/docs/oauth-setup.md "
+            "for step-by-step instructions."
+        )
+    return {
+        "installed": {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": ["http://127.0.0.1"],
+        }
+    }
+
+
 def browser_login() -> tuple[str, str]:
     """Run PKCE flow via local HTTP server; return (email, refresh_token)."""
-    flow = Flow.from_client_config(_CLIENT_CONFIG, scopes=_SCOPES)
+    client_config = _load_client_config()
+    flow = Flow.from_client_config(client_config, scopes=_SCOPES)
     flow.run_local_server(port=0, prompt="consent", access_type="offline")
     creds = flow.credentials
     # ID token (when present) carries email; for v0.1 use userinfo endpoint as fallback
@@ -35,6 +62,7 @@ def browser_login() -> tuple[str, str]:
 
 def device_code_login() -> tuple[str, str]:
     """Placeholder for device-code flow (not yet implemented)."""
+    _load_client_config()  # validate env vars eagerly before attempting the flow
     # google-auth-oauthlib does not implement device flow directly; v0.1 surfaces a TODO
     raise NotImplementedError("device-code flow lands in v0.1.1; use `gampan auth login` for now")
 

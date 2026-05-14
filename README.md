@@ -19,6 +19,22 @@ pipx install gampan
 pip install gampan
 ```
 
+## Authentication
+
+`gampan` ships with its own OAuth client baked in — just like `gcloud`, `gh`, and
+`firebase`. You do not need to register a Google Cloud project or configure credentials
+before running `gampan auth login`.
+
+> **Enterprise / fork users**: if you want your own OAuth client for audit reasons, set
+> `GAMPAN_OAUTH_CLIENT_ID` and `GAMPAN_OAUTH_CLIENT_SECRET` environment variables and
+> they will take precedence over the built-in defaults.
+
+> **Maintainers / first-time setup**: the baked-in defaults are currently placeholders
+> (`TODO_REGISTER_OAUTH_CLIENT...`). Follow
+> [docs/oauth-client-setup.md](docs/oauth-client-setup.md) to register the client and
+> replace the constants (one-time commit). Until then, `gampan auth login` exits with a
+> clear error pointing to that doc.
+
 ## Quickstart
 
 ```bash

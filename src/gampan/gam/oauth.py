@@ -15,28 +15,37 @@ _SCOPES = ["https://www.googleapis.com/auth/dfp"]  # Google Ad Manager
 _KEYCHAIN_SERVICE = "gampan"
 _KEYCHAIN_USER = "default"
 
+# Baked-in OAuth client for `gampan`. Per RFC 8252 §8.5, installed-app
+# client secrets are not actually secret — they ship in the source.
+#
+# To replace these with a real registered client, follow
+# `docs/oauth-client-setup.md`. Until then, `gampan auth login` will
+# return a clear error pointing to the doc.
+_DEFAULT_CLIENT_ID = "TODO_REGISTER_OAUTH_CLIENT.apps.googleusercontent.com"
+_DEFAULT_CLIENT_SECRET = "TODO_REGISTER_OAUTH_CLIENT_SECRET"  # noqa: S105
+
 
 def _load_client_config() -> dict:  # type: ignore[type-arg]
-    """Build OAuth client config from environment variables.
+    """Build OAuth client config from env vars, falling back to baked-in defaults.
 
-    Reads ``GAMPAN_OAUTH_CLIENT_ID`` and ``GAMPAN_OAUTH_CLIENT_SECRET``.
-    Raises :class:`~gampan.core.errors.AuthError` with setup instructions when
-    either variable is absent.
+    Reads ``GAMPAN_OAUTH_CLIENT_ID`` (falling back to :data:`_DEFAULT_CLIENT_ID`)
+    and ``GAMPAN_OAUTH_CLIENT_SECRET`` (falling back to :data:`_DEFAULT_CLIENT_SECRET`).
+
+    Raises :class:`~gampan.core.errors.AuthError` when the resolved client_id is
+    still the placeholder — i.e. the OAuth client has not yet been registered and no
+    env-var override was provided.  Enterprise users can override via env vars without
+    touching the source.
     """
-    client_id = os.environ.get("GAMPAN_OAUTH_CLIENT_ID")
-    client_secret = os.environ.get("GAMPAN_OAUTH_CLIENT_SECRET")
-    if not client_id or not client_secret:
-        missing = []
-        if not client_id:
-            missing.append("GAMPAN_OAUTH_CLIENT_ID")
-        if not client_secret:
-            missing.append("GAMPAN_OAUTH_CLIENT_SECRET")
+    client_id = os.environ.get("GAMPAN_OAUTH_CLIENT_ID", _DEFAULT_CLIENT_ID)
+    client_secret = os.environ.get("GAMPAN_OAUTH_CLIENT_SECRET", _DEFAULT_CLIENT_SECRET)
+    if client_id == _DEFAULT_CLIENT_ID:
         raise AuthError(
-            f"Missing environment variable(s): {', '.join(missing)}.\n"
-            "To authenticate with gampan you must register a Google OAuth client "
-            "and export its credentials before running `gampan auth login`.\n"
-            "See https://github.com/ad-pan/gampan/blob/main/docs/oauth-setup.md "
-            "for step-by-step instructions."
+            "gampan's OAuth client has not been registered yet.\n"
+            "Follow docs/oauth-client-setup.md to create a Google Cloud OAuth client\n"
+            "and replace the _DEFAULT_CLIENT_ID / _DEFAULT_CLIENT_SECRET constants\n"
+            "in src/gampan/gam/oauth.py (one-time commit).\n"
+            "Enterprise users can also set GAMPAN_OAUTH_CLIENT_ID and\n"
+            "GAMPAN_OAUTH_CLIENT_SECRET environment variables to skip source changes."
         )
     return {
         "installed": {

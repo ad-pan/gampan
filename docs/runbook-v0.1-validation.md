@@ -20,31 +20,12 @@ Google Ad Manager allows each Google account to create exactly **one** API test 
 - Python 3.12+ with `uv` available (`pip install uv` or `brew install uv`)
 - `gampan` installed from this repo: `cd /path/to/gampan && uv sync --extra dev && uv pip install -e .`
 - A Google account with Ad Manager API access
+- The gampan OAuth client registered (the `_DEFAULT_CLIENT_ID` placeholder replaced in
+  source). See [docs/oauth-client-setup.md](oauth-client-setup.md) for one-time setup.
 
 ---
 
-## Step 1 — Register an OAuth client
-
-1. Open <https://console.cloud.google.com> in a browser.
-2. Create or select any Google Cloud project.
-3. Enable the **Google Ad Manager API** (search for it in the API Library).
-4. Navigate to **APIs & Services → Credentials → Create Credentials → OAuth client ID**.
-5. Application type: **Desktop app**. Give it any name (e.g. `gampan-dev`).
-6. Click **Create**, then **Download JSON**.
-7. Set the environment variables in your terminal session:
-
-```bash
-export GAMPAN_OAUTH_CLIENT_ID="<your_client_id>"
-export GAMPAN_OAUTH_CLIENT_SECRET="<your_client_secret>"
-```
-
-**Expected**: variables set, no output.
-
-**If it fails**: Ensure the Ad Manager API is enabled and OAuth consent screen is configured (External type is fine for testing; add your Google account as a test user).
-
----
-
-## Step 2 — Authenticate
+## Step 1 — Authenticate
 
 ```bash
 gampan auth login
@@ -59,11 +40,13 @@ Opening browser for Google OAuth…
 ✓ Credentials stored (keyring).
 ```
 
-**If it fails**: Check that `GAMPAN_OAUTH_CLIENT_ID` and `GAMPAN_OAUTH_CLIENT_SECRET` are set correctly. If the browser does not open, copy the printed URL and paste it manually.
+**If it fails**: If you see a "TODO_REGISTER_OAUTH_CLIENT" error, the OAuth client has not
+been registered yet — follow [docs/oauth-client-setup.md](oauth-client-setup.md) first.
+If the browser does not open, copy the printed URL and paste it manually.
 
 ---
 
-## Step 3 — Bootstrap the test network
+## Step 2 — Bootstrap the test network
 
 ```bash
 mkdir -p /tmp/gampan-validation
@@ -88,15 +71,15 @@ initialized /tmp/gampan-validation/.gampan/config.yml
 .gampan/config.yml updated.
 ```
 
-Note the network code — you will use it in Step 8.
+Note the network code — you will use it in Step 7.
 
 **If it fails**:
-- `AuthError` → retry Step 2.
+- `AuthError` → retry Step 1.
 - `API quota exceeded` → wait a few minutes; the test network quota resets hourly.
 
 ---
 
-## Step 4 — Import (should be empty)
+## Step 3 — Import (should be empty)
 
 ```bash
 gampan import
@@ -110,11 +93,11 @@ State: 0 resources tracked in .gampan/state.json
 
 The test network starts empty, so nothing is imported. This confirms the import path works.
 
-**If it fails**: Check that `config.yml` has a valid (non-zero) network code from Step 3.
+**If it fails**: Check that `config.yml` has a valid (non-zero) network code from Step 2.
 
 ---
 
-## Step 5 — Create the sample resource files
+## Step 4 — Create the sample resource files
 
 Write three files into `/tmp/gampan-validation/native-styles/`:
 
@@ -158,7 +141,7 @@ You can create them with your editor or by pasting the blocks above directly in 
 
 ---
 
-## Step 6 — Plan (CREATE)
+## Step 5 — Plan (CREATE)
 
 ```bash
 gampan plan
@@ -184,7 +167,7 @@ Exit code must be **2** (pending changes). Verify with `echo $?`.
 
 ---
 
-## Step 7 — Apply
+## Step 6 — Apply
 
 ```bash
 gampan apply --auto-approve
@@ -206,7 +189,7 @@ After this step, verify `cat .gampan/state.json` — it should contain an entry 
 
 ---
 
-## Step 8 — Verify in UI
+## Step 7 — Verify in UI
 
 Open your browser to:
 
@@ -214,13 +197,13 @@ Open your browser to:
 https://admanager.google.com/<network_code>/creatives#native-styles
 ```
 
-replacing `<network_code>` with the value from Step 3.
+replacing `<network_code>` with the value from Step 2.
 
 Confirm that a native style named `gampan-validation-sample` appears in the list.
 
 ---
 
-## Step 9 — Modify and re-apply
+## Step 8 — Modify and re-apply
 
 Edit `native-styles/sample.html` to change the body text, e.g.:
 
@@ -242,7 +225,7 @@ gampan apply --auto-approve
 
 ---
 
-## Step 10 — Drift recovery
+## Step 9 — Drift recovery
 
 1. In the GAM UI (<https://admanager.google.com/>), open the native style and manually change the CSS snippet (add a comment or change a color).
 2. Save the change in the UI.
@@ -271,7 +254,7 @@ Drift detected (remote changed since last apply):
 
 ---
 
-## Step 11 — Record cassettes
+## Step 10 — Record cassettes
 
 With the live session done, replay the same flow while recording VCR cassettes so the test suite can run offline:
 
@@ -286,7 +269,7 @@ See `scripts/record_cassettes.sh` for the exact command. Cassettes will be writt
 
 ---
 
-## Step 12 — Commit cassettes
+## Step 11 — Commit cassettes
 
 ```bash
 cd /path/to/gampan

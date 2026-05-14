@@ -4,6 +4,10 @@ set -euo pipefail
 
 uv run python -m nuitka \
   --standalone --onefile \
+  --onefile-cache-mode=cached \
+  --company-name=ad-pan \
+  --product-name=gampan \
+  --product-version=0.1.0 \
   --output-dir=dist \
   --output-filename=gampan \
   --include-package=googleads \

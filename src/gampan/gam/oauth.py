@@ -13,7 +13,14 @@ from gampan.core.errors import AuthError
 
 # GAM scope (renamed from .../auth/dfp in 2025; server rewrites the old one and
 # oauthlib then rejects the mismatch, so we request the new one directly).
-_SCOPES = ["https://www.googleapis.com/auth/admanager"]
+# The openid + userinfo.email scopes let us call /oauth2/v2/userinfo to display
+# "Logged in as <email>" after the flow completes. Email is a UX nicety, not
+# load-bearing — _fetch_email tolerates a 401 gracefully.
+_SCOPES = [
+    "https://www.googleapis.com/auth/admanager",
+    "openid",
+    "https://www.googleapis.com/auth/userinfo.email",
+]
 _KEYCHAIN_SERVICE = "gampan"
 _KEYCHAIN_USER = "default"
 
@@ -64,8 +71,13 @@ def browser_login() -> tuple[str, str]:
     client_config = _load_client_config()
     flow = InstalledAppFlow.from_client_config(client_config, scopes=_SCOPES)
     creds = flow.run_local_server(port=0, prompt="consent", access_type="offline")
-    # ID token (when present) carries email; for v0.1 use userinfo endpoint as fallback
-    email = _fetch_email(creds.token)
+    # ID token (when present) carries email; for v0.1 use userinfo endpoint as fallback.
+    # If the userinfo.email scope was denied, surface a placeholder rather than crash —
+    # the refresh_token is the load-bearing artifact, not the displayed email.
+    try:
+        email = _fetch_email(creds.token)
+    except Exception:  # noqa: BLE001
+        email = "(email unavailable)"
     return email, creds.refresh_token
 
 

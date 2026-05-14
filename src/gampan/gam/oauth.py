@@ -15,14 +15,13 @@ _SCOPES = ["https://www.googleapis.com/auth/dfp"]  # Google Ad Manager
 _KEYCHAIN_SERVICE = "gampan"
 _KEYCHAIN_USER = "default"
 
-# Baked-in OAuth client for `gampan`. Per RFC 8252 §8.5, installed-app
-# client secrets are not actually secret — they ship in the source.
-#
-# To replace these with a real registered client, follow
-# `docs/oauth-client-setup.md`. Until then, `gampan auth login` will
-# return a clear error pointing to the doc.
-_DEFAULT_CLIENT_ID = "TODO_REGISTER_OAUTH_CLIENT.apps.googleusercontent.com"
-_DEFAULT_CLIENT_SECRET = "TODO_REGISTER_OAUTH_CLIENT_SECRET"  # noqa: S105
+# Baked-in OAuth client for `gampan`, registered under the `ad-pan` GCP project.
+# Per RFC 8252 §8.5, installed-app client secrets are not actually secret — they
+# ship in the source. Mainstream CLIs (gcloud, gh, firebase, rclone) follow the
+# same pattern. Enterprise forks can override via GAMPAN_OAUTH_CLIENT_ID /
+# GAMPAN_OAUTH_CLIENT_SECRET env vars.
+_DEFAULT_CLIENT_ID = "834482691156-56qq3gl79pm709d46fi5oniudeed2eq3.apps.googleusercontent.com"
+_DEFAULT_CLIENT_SECRET = "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"  # noqa: S105
 
 
 def _load_client_config() -> dict:  # type: ignore[type-arg]
@@ -38,7 +37,7 @@ def _load_client_config() -> dict:  # type: ignore[type-arg]
     """
     client_id = os.environ.get("GAMPAN_OAUTH_CLIENT_ID", _DEFAULT_CLIENT_ID)
     client_secret = os.environ.get("GAMPAN_OAUTH_CLIENT_SECRET", _DEFAULT_CLIENT_SECRET)
-    if client_id == _DEFAULT_CLIENT_ID:
+    if client_id.startswith("TODO_REGISTER_"):
         raise AuthError(
             "gampan's OAuth client has not been registered yet.\n"
             "Follow docs/oauth-client-setup.md to create a Google Cloud OAuth client\n"

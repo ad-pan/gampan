@@ -29,15 +29,30 @@ def test_clear_credentials_deletes_keychain() -> None:
         kr.delete_password.assert_called_once_with("gampan", "default")
 
 
-def test_load_client_config_raises_when_placeholders_unfilled() -> None:
-    """AuthError fires when defaults are still placeholders and no env vars set."""
+def test_load_client_config_uses_baked_in_defaults() -> None:
+    """No env vars set → baked-in defaults flow through without raising."""
     env = {
         k: v
         for k, v in os.environ.items()
         if k not in ("GAMPAN_OAUTH_CLIENT_ID", "GAMPAN_OAUTH_CLIENT_SECRET")
     }
+    with patch.dict(os.environ, env, clear=True):
+        config = _load_client_config()
+    client_id = config["installed"]["client_id"]
+    secret = config["installed"]["client_secret"]
+    assert client_id.endswith(".apps.googleusercontent.com")
+    assert not client_id.startswith("TODO_REGISTER_")
+    assert secret
+    assert not secret.startswith("TODO_REGISTER_")
+
+
+def test_load_client_config_raises_when_client_id_is_todo_placeholder() -> None:
+    """Regression guard: if someone re-introduces the TODO placeholder, AuthError fires."""
+    overrides = {
+        "GAMPAN_OAUTH_CLIENT_ID": "TODO_REGISTER_OAUTH_CLIENT.apps.googleusercontent.com",
+    }
     with (
-        patch.dict(os.environ, env, clear=True),
+        patch.dict(os.environ, overrides),
         pytest.raises(AuthError, match="oauth-client-setup.md"),
     ):
         _load_client_config()
@@ -70,6 +85,7 @@ def test_load_client_config_raises_only_when_client_id_is_placeholder() -> None:
     assert config["installed"]["client_id"] == "my-registered-id.apps.googleusercontent.com"
 
 
-def test_default_client_id_sentinel_value() -> None:
-    """Ensure the placeholder constant stays recognisable for the guard check."""
-    assert _DEFAULT_CLIENT_ID == "TODO_REGISTER_OAUTH_CLIENT.apps.googleusercontent.com"
+def test_default_client_id_is_registered() -> None:
+    """Sanity: the baked-in default is a real Google OAuth client, not a placeholder."""
+    assert _DEFAULT_CLIENT_ID.endswith(".apps.googleusercontent.com")
+    assert not _DEFAULT_CLIENT_ID.startswith("TODO_REGISTER_")

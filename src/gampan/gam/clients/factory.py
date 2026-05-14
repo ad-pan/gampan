@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from google.ads.admanager_v1 import CreativeTemplateServiceClient as AdManagerServiceClient
 from googleads import oauth2 as googleads_oauth2
 from googleads.ad_manager import AdManagerClient
@@ -27,6 +29,28 @@ def soap_client_factory(network_code: str, creds: Credentials) -> NativeStyleSoa
     )
     svc = am.GetService("NativeStyleService", version="v202508")
     return NativeStyleSoapClient(svc)
+
+
+def soap_bootstrap_service_factory(creds: Credentials) -> Any:
+    """Build a NetworkService SOAP client **without** a network code.
+
+    Used exclusively by ``gampan bootstrap-test-network`` which must call
+    ``NetworkService.makeTestNetwork()`` before any network exists.  The
+    ``AdManagerClient`` constructor accepts ``network_code=None``; passing an
+    existing network code would scope the client to that network and the call
+    would fail.
+
+    Returns the raw SOAP service object (not a wrapper) because
+    ``NetworkService`` is only needed for the single bootstrap call.
+    """
+    google_creds = creds.to_google_credentials()
+    oauth2_client = googleads_oauth2.GoogleCredentialsClient(google_creds)
+    am = AdManagerClient(
+        oauth2_client=oauth2_client,
+        application_name="gampan/0.1.0",
+        network_code=None,
+    )
+    return am.GetService("NetworkService", version="v202508")
 
 
 def rest_client_factory(network_code: str, creds: Credentials) -> CreativeTemplateRestClient:

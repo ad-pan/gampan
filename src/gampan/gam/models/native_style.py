@@ -39,23 +39,26 @@ class NativeStyle(BaseModel):
 
     @classmethod
     def from_remote(cls, data: dict[str, Any]) -> NativeStyle:
-        size_raw = data["size"]
-        targeting_raw = data.get("targeting", {})
+        size_raw = data["size"] or {}
+        # GAM may serialise `targeting` itself as None for unrestricted styles.
+        targeting_raw = data.get("targeting") or {}
         return cls(
             name=data["name"],
             size=Size(
                 width=int(size_raw["width"]),
                 height=int(size_raw["height"]),
-                is_fluid=bool(size_raw.get("isFluid", False)),
+                is_fluid=bool(size_raw.get("isFluid") or False),
             ),
             template_id=int(data["creativeTemplateId"]),
-            html=data.get("htmlSnippet", ""),
-            css=data.get("cssSnippet", ""),
+            html=data.get("htmlSnippet") or "",
+            css=data.get("cssSnippet") or "",
             targeting=Targeting(
-                ad_units=list(targeting_raw.get("adUnits", [])),
-                custom=dict(targeting_raw.get("customTargeting", {})),
+                # GAM SOAP returns explicit `None` for empty repeated/map fields
+                # rather than omitting them — coerce to safe empty values.
+                ad_units=list(targeting_raw.get("adUnits") or []),
+                custom=dict(targeting_raw.get("customTargeting") or {}),
             ),
-            status=data.get("status", "ACTIVE"),
+            status=data.get("status") or "ACTIVE",
         )
 
     def to_remote(self) -> dict[str, Any]:

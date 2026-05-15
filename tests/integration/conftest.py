@@ -6,15 +6,23 @@ VCR cassette lookup:
     in test_import_e2e.py).
   - Set VCR_RECORD=once (or new/all) to record against a live GAM sandbox.
 
-Header filtering:
-  - `authorization` and `x-goog-api-key` are stripped from every recorded
-    cassette so committed files carry no secrets.
+Secret redaction — cassettes are committed to git, so EVERY layer with potential
+auth data gets filtered:
+  - request headers: ``authorization``, ``x-goog-api-key``
+  - request POST body (form-encoded): ``refresh_token``, ``access_token``,
+    ``client_secret``, ``client_id`` (the OAuth token endpoint receives all
+    of these as form params)
+  - response JSON body: ``access_token``, ``id_token`` (issued during the
+    recording session, expires in ~1h but redacted anyway for hygiene)
 """
 
 from __future__ import annotations
 
+import json
 import os
+import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 import vcr as vcrlib
@@ -26,11 +34,58 @@ _CASSETTE_DIR = (Path(__file__).resolve().parent / "cassettes").resolve()
 # Honour VCR_RECORD env var; default to "none" (playback-only) when absent.
 _RECORD_MODE = os.environ.get("VCR_RECORD", "none")
 
+_REDACTED = "REDACTED"
+
+
+def _redact_response_body(response: dict[str, Any]) -> dict[str, Any]:
+    """Replace access_token / id_token in a recorded JSON response body."""
+    body = response.get("body", {})
+    raw = body.get("string", b"") if isinstance(body, dict) else b""
+    if not raw:
+        return response
+    text = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else str(raw)
+    # Only attempt JSON redaction for plausibly-JSON payloads
+    stripped = text.lstrip()
+    if not (stripped.startswith("{") or stripped.startswith("[")):
+        return response
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return response
+    if isinstance(parsed, dict):
+        for k in ("access_token", "id_token"):
+            if k in parsed:
+                parsed[k] = _REDACTED
+    redacted = json.dumps(parsed, separators=(",", ":")).encode("utf-8")
+    response["body"] = {**body, "string": redacted}
+    return response
+
+
+_TOKEN_FORM_FIELDS = ("refresh_token", "access_token", "client_secret", "client_id")
+_TOKEN_FIELD_RE = re.compile(
+    rb"(?P<field>" + b"|".join(f.encode() for f in _TOKEN_FORM_FIELDS) + rb")=[^&\s]+",
+)
+
+
+def _redact_request_body(request: vcrlib.Request) -> vcrlib.Request:
+    """Replace token-shaped form fields in a urlencoded POST body."""
+    body = getattr(request, "body", None)
+    if body is None:
+        return request
+    raw = body if isinstance(body, bytes) else str(body).encode("utf-8")
+    redacted = _TOKEN_FIELD_RE.sub(lambda m: m.group("field") + b"=" + _REDACTED.encode(), raw)
+    if redacted != raw:
+        request.body = redacted
+    return request
+
+
 vcr_default = vcrlib.VCR(
     cassette_library_dir=str(_CASSETTE_DIR),
     record_mode=_RECORD_MODE,
     match_on=["method", "scheme", "host", "port", "path", "query"],
     filter_headers=["authorization", "x-goog-api-key"],
+    before_record_request=_redact_request_body,
+    before_record_response=_redact_response_body,
 )
 
 

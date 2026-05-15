@@ -41,16 +41,46 @@ def slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9_-]+", "-", name.lower()).strip("-")
 
 
-def write_resource(repo_root: Path, resource: Resource) -> Path:
-    """Write the YAML + any side files, returning the YAML path."""
+def write_resource(
+    repo_root: Path,
+    resource: Resource,
+    gam_id: str,
+    seen_slugs: set[str] | None = None,
+) -> Path:
+    """Write the YAML + any side files, returning the YAML path.
+
+    Args:
+        repo_root: Root of the gampan repo.
+        resource: The resource model to serialise.
+        gam_id: The GAM numeric ID — used as filename stem when the slug
+            is empty (Korean / all-special-char names) and as a disambiguation
+            suffix when two resources share the same slug.
+        seen_slugs: Mutable set of stem strings already emitted in this run.
+            When provided, a collision appends ``-{gam_id}`` to keep filenames
+            unique.  Pass the *same* set across all calls in a single import
+            run.
+    """
+    if seen_slugs is None:
+        seen_slugs = set()
+
     dir_name = _KIND_TO_DIR[resource.kind]
     target_dir = repo_root / dir_name
     target_dir.mkdir(parents=True, exist_ok=True)
-    yaml_path = target_dir / f"{slugify(resource.name)}.yaml"
+
+    slug = slugify(resource.name)
+    if not slug:
+        stem = gam_id
+    elif slug in seen_slugs:
+        stem = f"{slug}-{gam_id}"
+    else:
+        stem = slug
+    seen_slugs.add(stem)
+
+    yaml_path = target_dir / f"{stem}.yaml"
 
     payload = resource.to_remote()
     # Promote html/snippet/css to side files for editor support
-    side_files = _emit_side_files(target_dir, slugify(resource.name), payload)
+    side_files = _emit_side_files(target_dir, stem, payload)
 
     yaml = YAML()
     yaml.default_flow_style = False
@@ -58,7 +88,7 @@ def write_resource(repo_root: Path, resource: Resource) -> Path:
     # collapses consecutive whitespace and breaks round-trip fidelity.
     yaml.width = 2**31 - 1
     yaml.representer.add_representer(FileRef, _represent_fileref)
-    data = _to_user_yaml(resource.kind, resource.name, payload, side_files)
+    data = _to_user_yaml(resource.kind, resource.name, gam_id, payload, side_files)
     data = _normalise_strings(data)
     with yaml_path.open("w") as f:
         yaml.dump(data, f)
@@ -98,9 +128,9 @@ def _emit_side_files(dir_path: Path, slug: str, payload: dict[str, Any]) -> dict
 
 
 def _to_user_yaml(
-    kind: str, name: str, payload: dict[str, Any], side_files: dict[str, Path]
+    kind: str, name: str, gam_id: str, payload: dict[str, Any], side_files: dict[str, Path]
 ) -> dict[str, Any]:
-    user: dict[str, Any] = {"kind": kind, "name": name}
+    user: dict[str, Any] = {"kind": kind, "_gam_id": gam_id, "name": name}
     if kind == "NativeStyle":
         user["size"] = {
             "width": payload["size"]["width"],

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ from gampan.cli._render import render_plan, render_summary
 from gampan.core.engine.planner import build_plan
 from gampan.core.fs.config import Config
 from gampan.core.fs.loader import load_all, validate_no_duplicates
+from gampan.core.fs.writer import slugify
 from gampan.core.protocols import Client, Resource
 from gampan.gam.auth import resolve_credentials
 from gampan.gam.models.creative_template import CreativeTemplate
@@ -90,17 +92,35 @@ def _load_config(root: Path) -> Config:
     return Config.model_validate(yaml.load((root / ".gampan" / "config.yml").read_text()))
 
 
-def _load_desired(root: Path, cfg: Config) -> list[Resource]:
+def _load_desired(root: Path, cfg: Config) -> list[tuple[str, Resource]]:
+    """Load YAML resources and return (state_key, model) pairs.
+
+    State key is ``{kind}:{gam_id}`` for imported YAMLs (those carrying a
+    ``_gam_id`` field), or ``{kind}:NEW:{slug}-{hash8}`` for user-authored
+    YAMLs that have never been imported.  The ``NEW:`` prefix ensures they
+    always appear as CREATE in the plan.
+    """
     raw = load_all(root, cfg)
     validate_no_duplicates(raw)
-    out: list[Resource] = []
+    out: list[tuple[str, Resource]] = []
     for item in raw:
         item = {k: v for k, v in item.items() if not k.startswith("__")}
         kind = item.pop("kind")
+        gam_id: str | None = item.pop("_gam_id", None)
         if kind == "NativeStyle":
-            out.append(NativeStyle(**item))
+            model: Resource = NativeStyle(**item)
         elif kind == "CreativeTemplate":
-            out.append(CreativeTemplate(**item))
+            model = CreativeTemplate(**item)
+        else:
+            continue
+        if gam_id:
+            key = f"{kind}:{gam_id}"
+        else:
+            # User-authored YAML — stable synthetic key so re-runs are idempotent.
+            name_slug = slugify(model.name) or "unnamed"
+            name_hash = hashlib.sha256(model.name.encode()).hexdigest()[:8]
+            key = f"{kind}:NEW:{name_slug}-{name_hash}"
+        out.append((key, model))
     return out
 
 
@@ -108,5 +128,5 @@ def _load_current(clients: dict[str, Client]) -> dict[str, tuple[str, Any]]:
     current: dict[str, tuple[str, Any]] = {}
     for kind, client in clients.items():
         for gam_id, r in client.list():
-            current[f"{kind}:{r.name}"] = (gam_id, r)
+            current[f"{kind}:{gam_id}"] = (gam_id, r)
     return current

@@ -16,8 +16,11 @@ def _ns(name: str) -> NativeStyle:
 
 
 def test_build_plan_summary_counts() -> None:
-    desired = [_ns("a"), _ns("b")]
-    current = {"NativeStyle:a": ("id-1", _ns("a"))}  # NO_CHANGE
+    desired = [
+        ("NativeStyle:id-1", _ns("a")),  # NO_CHANGE (matches current)
+        ("NativeStyle:NEW:b-deadbeef", _ns("b")),  # CREATE (not in current)
+    ]
+    current = {"NativeStyle:id-1": ("id-1", _ns("a"))}
     plan = build_plan(desired=desired, current=current)
     assert plan.has_pending is True
     summary = plan.summary()

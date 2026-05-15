@@ -34,11 +34,23 @@ def run(
     state = store.load_or_empty(network_code=cfg["network_code"])
 
     kinds = _resolve_kinds(resource)
+    # Track seen filename stems per-run to disambiguate slug collisions.
+    seen_slugs: set[str] = set()
+    # Track any stems that were disambiguated so we can report them.
+    disambiguated: list[tuple[str, str]] = []  # (original_slug, final_stem)
+
     for kind in kinds:
         for gam_id, r in clients[kind].list():
-            yaml_path = write_resource(root, r)
+            from gampan.core.fs.writer import slugify as _slugify
+
+            slug_before = _slugify(r.name)
+            yaml_path = write_resource(root, r, gam_id=gam_id, seen_slugs=seen_slugs)
+            stem = yaml_path.stem
+            if slug_before and stem != slug_before:
+                disambiguated.append((slug_before, stem))
+
             cs = r.checksum()
-            state.resources[f"{kind}:{r.name}"] = ResourceEntry(
+            state.resources[f"{kind}:{gam_id}"] = ResourceEntry(
                 gam_id=gam_id,
                 checksum_local=cs,
                 checksum_remote=cs,
@@ -48,6 +60,10 @@ def run(
 
     store.save(state)
     typer.echo(f"\nState: {len(state.resources)} resources tracked in .gampan/state.json")
+    if disambiguated:
+        typer.echo("\nNote: the following filenames were disambiguated (duplicate slug):")
+        for orig, final in disambiguated:
+            typer.echo(f"  {orig} → {final}")
 
 
 def _resolve_kinds(resource: str) -> list[str]:

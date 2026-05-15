@@ -25,7 +25,7 @@ class Plan(BaseModel):
 
 
 def build_plan(
-    desired: list[Resource],
-    current: dict[str, tuple[str, Resource]],
+    desired: list[tuple[str, Resource]],  # (state_key, model)
+    current: dict[str, tuple[str, Resource]],  # state_key → (gam_id, model)
 ) -> Plan:
     return Plan(changes=diff_resources(desired, current))

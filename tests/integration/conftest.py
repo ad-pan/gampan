@@ -87,9 +87,7 @@ def _redact_request_body(request: vcrlib.Request) -> vcrlib.Request:
             raw,
         )
         if _RECORDING_NETWORK != _NETWORK_PLACEHOLDER:
-            redacted = redacted.replace(
-                _RECORDING_NETWORK.encode(), _NETWORK_PLACEHOLDER.encode()
-            )
+            redacted = redacted.replace(_RECORDING_NETWORK.encode(), _NETWORK_PLACEHOLDER.encode())
         if redacted != raw:
             request.body = redacted
     return request

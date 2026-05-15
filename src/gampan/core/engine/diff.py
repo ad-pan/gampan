@@ -38,10 +38,6 @@ class Change(BaseModel):
     diff_summary: list[str] = []
 
 
-def _key(r: Resource) -> str:
-    return f"{r.kind}:{r.name}"
-
-
 def _field_diff(
     a: dict[str, Any],
     b: dict[str, Any],
@@ -89,15 +85,20 @@ def _list_diff(a: list[Any], b: list[Any], prefix: str) -> list[FieldDiff]:
 
 
 def diff_resources(
-    desired: list[Resource],
-    current: dict[str, tuple[str, Resource]],  # key → (gam_id, model)
+    desired: list[tuple[str, Resource]],  # (state_key, model)
+    current: dict[str, tuple[str, Resource]],  # state_key → (gam_id, model)
 ) -> list[Change]:
-    """Produce ordered Change list. Order: CREATE, UPDATE, NO_CHANGE, DELETE."""
-    changes: list[Change] = []
-    desired_keys = {_key(r) for r in desired}
+    """Produce ordered Change list. Order: CREATE, UPDATE, NO_CHANGE, DELETE.
 
-    for r in desired:
-        key = _key(r)
+    ``desired`` is a list of ``(state_key, resource)`` pairs where
+    ``state_key`` is ``"{kind}:{gam_id}"`` for imported resources or a
+    synthetic ``"{kind}:NEW:..."`` key for user-authored ones.  This decouples
+    identity from the display name so Korean / duplicate names don't collide.
+    """
+    changes: list[Change] = []
+    desired_keys = {key for key, _ in desired}
+
+    for key, r in desired:
         if key not in current:
             changes.append(
                 Change(

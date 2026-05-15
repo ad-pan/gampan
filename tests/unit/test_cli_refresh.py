@@ -28,6 +28,7 @@ def test_refresh_updates_remote_checksum_in_state(
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".gampan").mkdir()
     (tmp_path / ".gampan" / "config.yml").write_text("network_code: '42'\nenv: dev\n")
+    # State key is now {kind}:{gam_id}
     entry = {
         "gam_id": "1",
         "checksum_local": "sha256:old",
@@ -38,7 +39,7 @@ def test_refresh_updates_remote_checksum_in_state(
             {
                 "schema_version": 1,
                 "network_code": "42",
-                "resources": {"NativeStyle:card": entry},
+                "resources": {"NativeStyle:1": entry},
             }
         )
     )
@@ -53,5 +54,6 @@ def test_refresh_updates_remote_checksum_in_state(
     assert result.exit_code == 0, result.output
 
     state = json.loads((tmp_path / ".gampan" / "state.json").read_text())
-    remote_cs = state["resources"]["NativeStyle:card"]["checksum_remote"]
+    # State key is {kind}:{gam_id}
+    remote_cs = state["resources"]["NativeStyle:1"]["checksum_remote"]
     assert remote_cs != "sha256:old"

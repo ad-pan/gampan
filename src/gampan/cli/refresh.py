@@ -25,7 +25,7 @@ def run() -> None:
     drifted: list[str] = []
     for kind, client in clients.items():
         for gam_id, r in client.list():
-            key = f"{kind}:{r.name}"
+            key = f"{kind}:{gam_id}"
             entry = state.resources.get(key)
             if entry is None:
                 continue

@@ -28,17 +28,20 @@ def _ct(
 
 
 def test_create_when_desired_only() -> None:
-    changes = diff_resources(desired=[_ns("a")], current={})
+    changes = diff_resources(desired=[("NativeStyle:id-a", _ns("a"))], current={})
     assert len(changes) == 1
     assert changes[0].action == Action.CREATE
-    assert changes[0].key == "NativeStyle:a"
+    assert changes[0].key == "NativeStyle:id-a"
     # CREATE produces no diffs (nothing to compare against)
     assert changes[0].diffs == []
 
 
 def test_no_change_when_checksums_match() -> None:
     a = _ns("a")
-    changes = diff_resources(desired=[a], current={"NativeStyle:a": ("id-1", a)})
+    changes = diff_resources(
+        desired=[("NativeStyle:id-1", a)],
+        current={"NativeStyle:id-1": ("id-1", a)},
+    )
     assert changes[0].action == Action.NO_CHANGE
     assert changes[0].diffs == []
 
@@ -46,7 +49,10 @@ def test_no_change_when_checksums_match() -> None:
 def test_update_when_content_differs() -> None:
     a1 = _ns("a", html="<div/>")
     a2 = _ns("a", html="<span/>")
-    changes = diff_resources(desired=[a2], current={"NativeStyle:a": ("id-1", a1)})
+    changes = diff_resources(
+        desired=[("NativeStyle:id-1", a2)],
+        current={"NativeStyle:id-1": ("id-1", a1)},
+    )
     assert changes[0].action == Action.UPDATE
     # New structured diffs
     paths = [d.path for d in changes[0].diffs]
@@ -61,7 +67,7 @@ def test_update_when_content_differs() -> None:
 
 def test_delete_when_only_in_current() -> None:
     a = _ns("a")
-    changes = diff_resources(desired=[], current={"NativeStyle:a": ("id-1", a)})
+    changes = diff_resources(desired=[], current={"NativeStyle:id-1": ("id-1", a)})
     assert changes[0].action == Action.DELETE
     assert changes[0].diffs == []
 
@@ -79,7 +85,10 @@ def test_update_nested_field_diff() -> None:
         targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
-    changes = diff_resources(desired=[a2], current={"NativeStyle:a": ("id-1", a1)})
+    changes = diff_resources(
+        desired=[("NativeStyle:id-1", a2)],
+        current={"NativeStyle:id-1": ("id-1", a1)},
+    )
     assert changes[0].action == Action.UPDATE
     paths = [d.path for d in changes[0].diffs]
     assert "size.width" in paths
@@ -91,7 +100,10 @@ def test_update_list_element_diff() -> None:
     v2 = TemplateVariable(name="cta", type="STRING", default="new")
     ct1 = _ct("t", variables=[v1])
     ct2 = _ct("t", variables=[v2])
-    changes = diff_resources(desired=[ct2], current={"CreativeTemplate:t": ("id-1", ct1)})
+    changes = diff_resources(
+        desired=[("CreativeTemplate:id-1", ct2)],
+        current={"CreativeTemplate:id-1": ("id-1", ct1)},
+    )
     assert changes[0].action == Action.UPDATE
     paths = [d.path for d in changes[0].diffs]
     # default changed inside variables[0]
@@ -104,7 +116,10 @@ def test_update_list_length_diff() -> None:
     v2 = TemplateVariable(name="img", type="URL")
     ct1 = _ct("t", variables=[v1])
     ct2 = _ct("t", variables=[v1, v2])
-    changes = diff_resources(desired=[ct2], current={"CreativeTemplate:t": ("id-1", ct1)})
+    changes = diff_resources(
+        desired=[("CreativeTemplate:id-1", ct2)],
+        current={"CreativeTemplate:id-1": ("id-1", ct1)},
+    )
     assert changes[0].action == Action.UPDATE
     added = [d for d in changes[0].diffs if d.before is None]
     assert len(added) > 0

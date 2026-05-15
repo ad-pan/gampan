@@ -51,14 +51,14 @@ class FakeClient:
 def test_create_persists_state(tmp_path: Path) -> None:
     store = StateStore(tmp_path / "state.json")
     store.save(State(network_code="0"))
-    plan = build_plan(desired=[_ns("a")], current={})
+    plan = build_plan(desired=[("NativeStyle:NEW:a-test", _ns("a"))], current={})
     client_by_kind = {"NativeStyle": FakeClient()}
 
     execute_plan(plan, client_by_kind, store, tool_version="gampan/0.1.0")
 
     state = store.load()
-    assert "NativeStyle:a" in state.resources
-    assert state.resources["NativeStyle:a"].gam_id == "101"
+    assert "NativeStyle:NEW:a-test" in state.resources
+    assert state.resources["NativeStyle:NEW:a-test"].gam_id == "101"
     assert state.last_apply_tool_version == "gampan/0.1.0"
 
 
@@ -72,12 +72,19 @@ def test_failure_persists_partial_state(tmp_path: Path) -> None:
                 raise GamApiError("boom")
             return super().create(resource)
 
-    plan = build_plan(desired=[_ns("a"), _ns("b"), _ns("c")], current={})
+    plan = build_plan(
+        desired=[
+            ("NativeStyle:NEW:a-test", _ns("a")),
+            ("NativeStyle:NEW:b-test", _ns("b")),
+            ("NativeStyle:NEW:c-test", _ns("c")),
+        ],
+        current={},
+    )
     with pytest.raises(GamApiError):
         execute_plan(plan, {"NativeStyle": FailingClient()}, store, tool_version="t")
 
     state = store.load()
     # a was created and persisted; b failed; c never attempted
-    assert "NativeStyle:a" in state.resources
-    assert "NativeStyle:b" not in state.resources
-    assert "NativeStyle:c" not in state.resources
+    assert "NativeStyle:NEW:a-test" in state.resources
+    assert "NativeStyle:NEW:b-test" not in state.resources
+    assert "NativeStyle:NEW:c-test" not in state.resources

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -21,7 +22,7 @@ from gampan.gam.models.creative_template import CreativeTemplate
 from gampan.gam.models.native_style import NativeStyle
 
 
-def build_clients(network_code: str) -> dict[str, Client]:
+def build_clients(network_code: str) -> Mapping[str, Client]:
     """Resolve credentials + construct GAM clients. Patched in tests."""
     creds = resolve_credentials()
     from gampan.gam.clients.adapter import build_client_map
@@ -56,7 +57,11 @@ def run(
     clients = build_clients(cfg.network_code)
 
     desired = _load_desired(root, cfg)
-    current = _load_current(clients)
+    # Only query kinds we actually manage (kinds present in desired YAMLs OR
+    # in state.json from a prior import). Skipping unmanaged kinds avoids
+    # unnecessary SOAP/REST traffic and keeps `gampan plan` cassette-friendly.
+    managed_kinds = _managed_kinds(root, desired)
+    current = _load_current(clients, kinds=managed_kinds)
     plan = build_plan(desired=desired, current=current)
 
     if as_json:
@@ -124,9 +129,37 @@ def _load_desired(root: Path, cfg: Config) -> list[tuple[str, Resource]]:
     return out
 
 
-def _load_current(clients: dict[str, Client]) -> dict[str, tuple[str, Any]]:
+def _load_current(
+    clients: Mapping[str, Client],
+    kinds: set[str] | None = None,
+) -> dict[str, tuple[str, Any]]:
+    """Fetch remote resources for the given kinds.
+
+    When ``kinds`` is None, fetch every kind known to ``clients`` (legacy
+    behaviour, used by callers that already know they want everything).
+    """
+    target = kinds if kinds is not None else set(clients)
     current: dict[str, tuple[str, Any]] = {}
-    for kind, client in clients.items():
-        for gam_id, r in client.list():
+    for kind in target:
+        if kind not in clients:
+            continue
+        for gam_id, r in clients[kind].list():
             current[f"{kind}:{gam_id}"] = (gam_id, r)
     return current
+
+
+def _managed_kinds(root: Path, desired: list[tuple[str, Resource]]) -> set[str]:
+    """Set of kinds the user manages: any kind present in local YAML OR
+    referenced by an entry in state.json from a prior import."""
+    kinds: set[str] = {item[0].partition(":")[0] for item in desired}
+    state_path = root / ".gampan" / "state.json"
+    if state_path.exists():
+        try:
+            state = json.loads(state_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            state = {}
+        for key in state.get("resources", {}):
+            kind = key.partition(":")[0]
+            if kind:
+                kinds.add(kind)
+    return kinds

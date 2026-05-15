@@ -50,10 +50,10 @@ def test_import_writes_yaml_and_state(tmp_path: Path, monkeypatch: pytest.Monkey
     assert "_gam_id: '999'" in yaml_path.read_text()
 
 
-def test_import_korean_name_falls_back_to_gam_id(
+def test_import_korean_name_preserved_in_filename(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Korean-only name slugifies to empty → filename must be <gam_id>.yaml."""
+    """Korean-only name is preserved in the slug (CJK support); state key still gam_id."""
     monkeypatch.chdir(tmp_path)
     _init_repo(tmp_path)
     fake_client = MagicMock()
@@ -65,12 +65,32 @@ def test_import_korean_name_falls_back_to_gam_id(
         runner = CliRunner()
         result = runner.invoke(app, ["import", "--resource", "native-styles"])
     assert result.exit_code == 0, result.output
-    # Filename falls back to gam_id when slug is empty
-    yaml_path = tmp_path / "native-styles" / "777.yaml"
+    # CJK passes through slugify unchanged
+    yaml_path = tmp_path / "native-styles" / "한국어광고.yaml"
     ns_dir = tmp_path / "native-styles"
-    assert yaml_path.exists(), f"expected 777.yaml, got: {list(ns_dir.iterdir())}"
+    assert yaml_path.exists(), f"expected 한국어광고.yaml, got: {list(ns_dir.iterdir())}"
+    # gam_id remains the canonical state identity
     state_path = tmp_path / ".gampan" / "state.json"
     assert "NativeStyle:777" in state_path.read_text()
+
+
+def test_import_unrepresentable_name_falls_back_to_gam_id(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Names with NO letters/digits in any script (e.g. only punctuation/emoji)
+    do still fall back to gam_id."""
+    monkeypatch.chdir(tmp_path)
+    _init_repo(tmp_path)
+    fake_client = MagicMock()
+    fake_client.list.return_value = [("777", _ns(name="!!!@@@"))]
+    with patch(
+        "gampan.cli.import_cmd.build_clients",
+        return_value={"NativeStyle": fake_client},
+    ):
+        runner = CliRunner()
+        result = runner.invoke(app, ["import", "--resource", "native-styles"])
+    assert result.exit_code == 0, result.output
+    assert (tmp_path / "native-styles" / "777.yaml").exists()
 
 
 def test_import_duplicate_slug_appends_gam_id(

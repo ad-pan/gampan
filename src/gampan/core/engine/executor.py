@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from gampan.core.engine.diff import Action
@@ -13,7 +14,7 @@ from gampan.core.state.store import StateStore
 
 def execute_plan(
     plan: Plan,
-    client_by_kind: dict[str, Client],
+    client_by_kind: Mapping[str, Client],
     store: StateStore,
     tool_version: str,
 ) -> None:

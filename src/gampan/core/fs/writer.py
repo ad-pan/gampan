@@ -9,6 +9,7 @@ on the next read.
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +23,10 @@ _KIND_TO_DIR = {
     "NativeStyle": "native-styles",
     "CreativeTemplate": "creative-templates",
 }
+
+# Cap on filename stem length. Most filesystems allow 255 bytes per component,
+# but Korean / CJK takes 3 bytes per char in UTF-8 — keep some headroom.
+_MAX_STEM_LEN = 80
 
 
 class FileRef:
@@ -38,7 +43,32 @@ def _represent_fileref(representer: RoundTripRepresenter, data: FileRef) -> Any:
 
 
 def slugify(name: str) -> str:
-    return re.sub(r"[^a-z0-9_-]+", "-", name.lower()).strip("-")
+    """Filesystem-safe slug that preserves CJK / non-Latin scripts.
+
+    Rules:
+      * NFC-normalise so macOS (NFD by default) and Linux produce the same bytes
+        — important for git diff stability across platforms.
+      * Keep any Unicode "letter" or "number" (Hangul / Han / Kana / Cyrillic /
+        accented Latin / digits) plus ``_`` and ``-``.
+      * Replace anything else (whitespace, punctuation, emoji, path separators)
+        with ``-``; collapse runs of ``-``; strip leading/trailing ``-``.
+      * Lowercase ASCII letters only; non-Latin scripts have no concept of case
+        and are passed through.
+      * Cap to 80 chars to leave headroom under the 255-byte component limit
+        (CJK is 3 bytes/char in UTF-8).
+    """
+    normalised = unicodedata.normalize("NFC", name)
+    out: list[str] = []
+    for c in normalised:
+        if c.isalnum() or c in ("_", "-"):
+            # `.lower()` is well-defined for every Unicode letter: ASCII becomes
+            # lowercase, Cyrillic / Greek / accented Latin fold to their lowercase
+            # form, and caseless scripts (Hangul / Han / Kana) pass through.
+            out.append(c.lower())
+        else:
+            out.append("-")
+    collapsed = re.sub(r"-+", "-", "".join(out)).strip("-")
+    return collapsed[:_MAX_STEM_LEN]
 
 
 def write_resource(

@@ -72,7 +72,30 @@ gampan import
 
 # 4. Edit YAML files. Then preview changes:
 gampan plan
+```
 
+`gampan plan` output (terraform-style, colors in terminal):
+
+```
+  +  NativeStyle:my-card
+  ~  CreativeTemplate:standard-text-ad
+      description:
+        - "old description"
+        + "new description"
+      variables[2].default:
+        - "Buy now"
+        + "Shop now"
+  -  CreativeTemplate:archived-thing
+
+Plan: 1 to add, 1 to change, 1 to destroy. 33 unchanged.
+```
+
+- `+` green — resource will be created
+- `~` yellow — resource will be updated (field-level old→new diff shown)
+- `-` red — resource will be deleted
+- Pass `-u` / `--show-unchanged` to also show the `=` (no-change) rows
+
+```bash
 # 5. Apply
 gampan apply
 ```

@@ -10,6 +10,25 @@ from gampan.gam.clients._retry import retry_transient
 from gampan.gam.models.native_style import NativeStyle
 
 
+def _to_dict(raw: Any) -> dict[str, Any]:
+    """Convert a zeep CompoundValue (or already-a-dict) into a plain dict.
+
+    ``dict(zeep_obj)`` is unreliable: depending on the zeep type and version
+    its ``__iter__`` may yield 4-tuples or values-only, breaking the
+    ``dict(iterable)`` constructor's expected ``(key, value)`` pairs. The
+    canonical fix is ``zeep.helpers.serialize_object`` which recursively
+    converts CompoundValue → dict and SOAP arrays → list.
+
+    On a plain dict input (e.g. MagicMock-returned data in unit tests) it
+    is effectively a deep copy and the result is also dict-shaped.
+    """
+    # Local import keeps `zeep` an implementation detail and avoids paying
+    # the import cost at gampan startup when SOAP isn't used.
+    from zeep.helpers import serialize_object
+
+    return dict(serialize_object(raw, target_cls=dict))
+
+
 class NativeStyleSoapClient:
     """Implements core.protocols.Client for the NativeStyle resource."""
 
@@ -22,7 +41,7 @@ class NativeStyleSoapClient:
         result = self._svc.getNativeStylesByStatement({"query": ""})
         out: list[tuple[str, Resource]] = []
         for raw in getattr(result, "results", []) or []:
-            d = dict(raw)
+            d = _to_dict(raw)
             out.append((str(d["id"]), NativeStyle.from_remote(d)))
         return out
 
@@ -32,7 +51,7 @@ class NativeStyleSoapClient:
         results = list(getattr(result, "results", []) or [])
         if not results:
             raise GamApiPermanentError(f"NativeStyle id={gam_id} not found")
-        return NativeStyle.from_remote(dict(results[0]))
+        return NativeStyle.from_remote(_to_dict(results[0]))
 
     @retry_transient
     def create(self, resource: Resource) -> str:

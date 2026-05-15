@@ -1,0 +1,21 @@
+src/gampan/cli/_render.py
+  h_5fc43fec215ff3 1-174
+src/gampan/cli/apply.py
+  h_5fc43fec215ff3 28-30
+src/gampan/cli/plan.py
+  h_5fc43fec215ff3 12,44-49,65-75,81-82
+tests/unit/test_cli_plan.py
+  h_5fc43fec215ff3 53-54,56-57
+tests/unit/test_cli_render.py
+  h_5fc43fec215ff3 1-182
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "11c5ab5f918f8c21d420133d9f31972792e43e05",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

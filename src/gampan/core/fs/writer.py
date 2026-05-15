@@ -1,4 +1,10 @@
-"""Write Resource models back to YAML + side files."""
+"""Write Resource models back to YAML + side files.
+
+Long snippet fields (html / css / snippet) are promoted to sibling side files
+referenced from the YAML via a real ``!file`` tag (not a quoted string), so
+that the loader's ``!file`` constructor expands them back to identical content
+on the next read.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from ruamel.yaml import YAML
+from ruamel.yaml.representer import RoundTripRepresenter
 
 from gampan.core.protocols import Resource
 
@@ -14,6 +21,19 @@ _KIND_TO_DIR = {
     "NativeStyle": "native-styles",
     "CreativeTemplate": "creative-templates",
 }
+
+
+class FileRef:
+    """Marker for a ``!file <relpath>`` YAML tag the writer emits."""
+
+    __slots__ = ("relpath",)
+
+    def __init__(self, relpath: str) -> None:
+        self.relpath = relpath
+
+
+def _represent_fileref(representer: RoundTripRepresenter, data: FileRef) -> Any:
+    return representer.represent_scalar("!file", data.relpath)
 
 
 def slugify(name: str) -> str:
@@ -33,6 +53,7 @@ def write_resource(repo_root: Path, resource: Resource) -> Path:
 
     yaml = YAML()
     yaml.default_flow_style = False
+    yaml.representer.add_representer(FileRef, _represent_fileref)
     with yaml_path.open("w") as f:
         yaml.dump(_to_user_yaml(resource.kind, resource.name, payload, side_files), f)
     return yaml_path
@@ -53,7 +74,6 @@ def _to_user_yaml(
     kind: str, name: str, payload: dict[str, Any], side_files: dict[str, Path]
 ) -> dict[str, Any]:
     user: dict[str, Any] = {"kind": kind, "name": name}
-    # Map back to friendly field names + reference side files
     if kind == "NativeStyle":
         user["size"] = {
             "width": payload["size"]["width"],
@@ -78,7 +98,11 @@ def _to_user_yaml(
 
 
 def _ref_or_inline(field: str, payload: dict[str, Any], side_files: dict[str, Path]) -> Any:
+    """Return a FileRef when a side file exists, else the inline value.
+
+    The FileRef serialises as ``!file <relpath>`` (a real YAML tag) so the
+    loader's matching constructor inlines the file content on read.
+    """
     if field in side_files:
-        # Written as scalar; loader resolves via custom tag
-        return f"!file ./{side_files[field].name}"
+        return FileRef(f"./{side_files[field].name}")
     return payload.get(field, "")

@@ -50,5 +50,8 @@ def test_plan_shows_create_for_new_resource(
         runner = CliRunner()
         result = runner.invoke(app, ["plan"])
     assert result.exit_code == 2  # has pending changes
-    assert "CREATE" in result.output
+    # new rich renderer uses "+" prefix instead of "CREATE" label
+    assert "+" in result.output
     assert "card" in result.output
+    # summary line present
+    assert "to add" in result.output

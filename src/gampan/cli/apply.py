@@ -25,10 +25,9 @@ def run(
     current = _load_current(clients)
     plan = build_plan(desired=desired, current=current)
 
-    for c in plan.changes:
-        if c.action.value == "NO_CHANGE":
-            continue
-        typer.echo(f"  {c.action.value:9s} {c.key}")
+    from gampan.cli._render import render_plan
+
+    render_plan(plan, show_unchanged=False)
 
     if not plan.has_pending:
         typer.echo("No changes.")

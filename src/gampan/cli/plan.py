@@ -9,6 +9,7 @@ from typing import Any
 import typer
 from ruamel.yaml import YAML
 
+from gampan.cli._render import render_plan, render_summary
 from gampan.core.engine.planner import build_plan
 from gampan.core.fs.config import Config
 from gampan.core.fs.loader import load_all, validate_no_duplicates
@@ -40,6 +41,12 @@ def run(
         help="Exit 2 when there are pending changes (default on).",
     ),
     as_json: bool = typer.Option(False, "--json", help="Emit machine-readable JSON."),
+    show_unchanged: bool = typer.Option(
+        False,
+        "-u",
+        "--show-unchanged",
+        help="Print NO_CHANGE rows too.",
+    ),
 ) -> None:
     """Show pending changes between local YAML and the remote GAM state."""
     root = Path.cwd()
@@ -55,19 +62,24 @@ def run(
             json.dumps(
                 {
                     "summary": {a.value: n for a, n in plan.summary().items()},
-                    "changes": [{"action": c.action, "key": c.key} for c in plan.changes],
+                    "changes": [
+                        {
+                            "action": c.action,
+                            "key": c.key,
+                            "diffs": [
+                                {"path": d.path, "before": d.before, "after": d.after}
+                                for d in c.diffs
+                            ],
+                        }
+                        for c in plan.changes
+                    ],
                 },
                 indent=2,
             )
         )
     else:
-        for c in plan.changes:
-            typer.echo(f"  {c.action.value:9s} {c.key}")
-            for line in c.diff_summary:
-                typer.echo(line)
-        typer.echo("")
-        for action, count in plan.summary().items():
-            typer.echo(f"{action.value}: {count}")
+        render_plan(plan, show_unchanged=show_unchanged)
+        render_summary(plan)
 
     if detailed_exitcode and plan.has_pending:
         raise typer.Exit(code=2)

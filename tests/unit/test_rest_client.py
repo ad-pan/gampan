@@ -16,7 +16,7 @@ def _proto_item(name: str, snippet: str = "<div/>"):
     m.snippet = snippet
     # Enum-like: object with .name attribute
     m.type_ = MagicMock()
-    m.type_.name = "USER_DEFINED"
+    m.type_.name = "CUSTOM"
     m.status = MagicMock()
     m.status.name = "ACTIVE"
     m.variables = []
@@ -97,7 +97,7 @@ def test_list_maps_oneof_variable_to_string_type() -> None:
     item.description = "t"
     item.snippet = "<div/>"
     item.type_ = MagicMock()
-    item.type_.name = "USER_DEFINED"
+    item.type_.name = "CUSTOM"
     item.status = MagicMock()
     item.status.name = "ACTIVE"
     item.variables = [_proto_string_variable("headline", default="Hi")]

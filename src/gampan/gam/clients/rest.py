@@ -76,7 +76,7 @@ def _proto_to_remote_dict(item: Any) -> dict[str, Any]:
         "name": str(item.name),
         "description": str(item.description) if item.description else "",
         "snippet": str(item.snippet) if item.snippet else "",
-        "type": type_field.name if type_field else "USER_DEFINED",
+        "type": type_field.name if type_field else "CUSTOM",
         "status": status_field.name if status_field else "ACTIVE",
         "variables": [_var_to_dict(v) for v in item.variables],
     }

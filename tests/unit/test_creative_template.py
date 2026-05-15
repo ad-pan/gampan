@@ -8,7 +8,7 @@ def test_build_and_checksum() -> None:
     t = CreativeTemplate(
         name="interstitial",
         description="x",
-        type="USER_DEFINED",
+        type="CUSTOM",
         snippet="<div/>",
         variables=[
             TemplateVariable(name="headline", type="STRING", required=True),
@@ -24,7 +24,7 @@ def test_round_trip_through_remote_dict() -> None:
     raw = {
         "name": "interstitial",
         "description": "x",
-        "type": "USER_DEFINED",
+        "type": "CUSTOM",
         "snippet": "<div/>",
         "variables": [
             {"name": "headline", "type": "STRING", "required": True},

@@ -18,6 +18,10 @@ class TemplateVariable(BaseModel):
     default: str | None = None
 
 
+_TYPE_VALUES = {"STANDARD", "CUSTOM"}
+_STATUS_VALUES = {"ACTIVE", "INACTIVE", "DELETED"}
+
+
 class CreativeTemplate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -25,20 +29,31 @@ class CreativeTemplate(BaseModel):
 
     name: str
     description: str = ""
-    type: Literal["USER_DEFINED", "SYSTEM_DEFINED"] = "USER_DEFINED"
+    # Aligned to the REST API enum (STANDARD/CUSTOM). The SOAP API uses
+    # USER_DEFINED/SYSTEM_DEFINED — when v0.2 adds the SOAP write path for
+    # CreativeTemplate, the converter there must remap to these values.
+    type: Literal["STANDARD", "CUSTOM"] = "CUSTOM"
     snippet: str
     variables: list[TemplateVariable] = Field(default_factory=list)
-    status: Literal["ACTIVE", "INACTIVE", "ARCHIVED"] = "ACTIVE"
+    status: Literal["ACTIVE", "INACTIVE", "DELETED"] = "ACTIVE"
 
     @classmethod
     def from_remote(cls, data: dict[str, Any]) -> CreativeTemplate:
+        # Normalise UNSPECIFIED / unknown enum values to sensible defaults so
+        # `import` is permissive about whatever Google's API hands back.
+        raw_type = data.get("type", "CUSTOM")
+        if raw_type not in _TYPE_VALUES:
+            raw_type = "CUSTOM"
+        raw_status = data.get("status", "ACTIVE")
+        if raw_status not in _STATUS_VALUES:
+            raw_status = "ACTIVE"
         return cls(
             name=data["name"],
             description=data.get("description", ""),
-            type=data.get("type", "USER_DEFINED"),
+            type=raw_type,
             snippet=data.get("snippet", ""),
             variables=[TemplateVariable(**v) for v in data.get("variables", [])],
-            status=data.get("status", "ACTIVE"),
+            status=raw_status,
         )
 
     def to_remote(self) -> dict[str, Any]:

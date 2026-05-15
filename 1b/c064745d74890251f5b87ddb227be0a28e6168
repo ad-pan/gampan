@@ -1,0 +1,103 @@
+src/gampan/core/fs/writer.py
+  ea76f3f7c1beddbc 44-65,69-79,83,91,131,133
+src/gampan/cli/import_cmd.py
+  ea76f3f7c1beddbc 37-41,44-51,53,63-66
+src/gampan/cli/plan.py
+  ea76f3f7c1beddbc 5,17,60,95-102,105,109,111,113-123,131
+src/gampan/core/engine/diff.py
+  ea76f3f7c1beddbc 88-89,91-97,99,101,142
+src/gampan/core/engine/planner.py
+  ea76f3f7c1beddbc 28-29
+src/gampan/cli/refresh.py
+  ea76f3f7c1beddbc 28
+tests/unit/test_cli_import.py
+  ea76f3f7c1beddbc 2,13,15,47-101
+tests/unit/test_cli_refresh.py
+  ea76f3f7c1beddbc 31,42,57-58
+tests/unit/test_engine_diff.py
+  ea76f3f7c1beddbc 31,34,41-44,52-55,70,88-91,103-106,119-122
+tests/unit/test_engine_planner.py
+  ea76f3f7c1beddbc 19-23
+tests/unit/test_engine_executor.py
+  ea76f3f7c1beddbc 54,60-61,75-82,88-90
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "1bc064745d74890251f5b87ddb227be0a28e6168",
+  "prompts": {
+    "ea76f3f7c1beddbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d17f101d-ad8d-4ec8-bdb1-a3b5faf12d93",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T03:50:52.801Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T04:52:25.229Z"
+        },
+        {
+          "id": "cmux:open",
+          "ts": "2026-04-24T04:57:27.810Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:05:30.162Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:31:23.839Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:03:27.669Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:44:29.085Z"
+        },
+        {
+          "id": "superpowers:brainstorming",
+          "ts": "2026-05-13T02:25:33.679Z"
+        },
+        {
+          "id": "superpowers:writing-plans",
+          "ts": "2026-05-13T07:15:01.300Z"
+        },
+        {
+          "id": "superpowers:subagent-driven-development",
+          "ts": "2026-05-13T07:30:20.086Z"
+        },
+        {
+          "id": "superpowers:finishing-a-development-branch",
+          "ts": "2026-05-13T09:22:23.855Z"
+        }
+      ],
+      "tool_counts": {
+        "Skill": 11,
+        "Read": 52,
+        "ToolSearch": 5,
+        "mcp__plugin_atlassian_atlassian__getJiraIssue": 6,
+        "Bash": 214,
+        "mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue": 3,
+        "mcp__plugin_atlassian_atlassian__transitionJiraIssue": 3,
+        "TaskCreate": 47,
+        "TaskUpdate": 92,
+        "AskUserQuestion": 12,
+        "WebSearch": 2,
+        "WebFetch": 5,
+        "Write": 3,
+        "Edit": 102,
+        "Agent": 71,
+        "SendMessage": 1
+      },
+      "total_additions": 378,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -88,13 +88,53 @@ def _proto_to_remote_dict(item: Any) -> dict[str, Any]:
     return raw
 
 
+_VARIANT_TYPE_MAP = {
+    "string_variable": "STRING",
+    "url_variable": "URL",
+    "list_string_variable": "LIST",
+    "asset_variable": "ASSET",
+    "long_variable": "STRING",  # no LONG in our model; degrade to STRING for v0.1
+}
+
+
 def _var_to_dict(v: Any) -> dict[str, Any]:
-    """Convert a proto-plus CreativeTemplateVariable into a plain dict."""
-    v_type_field = getattr(v, "type_", None) or getattr(v, "type", None)
+    """Convert a REST CreativeTemplateVariable (proto-plus oneof) into the dict shape
+    that ``CreativeTemplate.TemplateVariable.from_remote`` expects.
+
+    The REST schema uses a oneof over ``{string,url,list_string,asset,long}_variable``
+    plus shared ``label`` / ``unique_display_name`` / ``description`` / ``required``
+    fields. Our flat model has ``name`` / ``type`` / ``description`` / ``required`` /
+    ``default``. The default value lives inside the variant subtype.
+    """
+    # Pick the active oneof variant via proto's WhichOneof if available;
+    # otherwise probe each candidate.
+    variant_name: str | None = None
+    variant: Any = None
+    pb = getattr(v, "_pb", None)
+    if pb is not None:
+        try:
+            variant_name = pb.WhichOneof("variable_value_type")
+        except Exception:  # pragma: no cover - safety net
+            variant_name = None
+    if variant_name is None:
+        for cand in _VARIANT_TYPE_MAP:
+            sub = getattr(v, cand, None)
+            if sub is not None and getattr(sub, "_pb", None) is not None and sub._pb.ByteSize():
+                variant_name = cand
+                variant = sub
+                break
+    if variant is None and variant_name is not None:
+        variant = getattr(v, variant_name, None)
+
+    var_type = _VARIANT_TYPE_MAP.get(variant_name or "", "STRING")
+    name = str(getattr(v, "unique_display_name", "") or getattr(v, "label", "")) or "(unnamed)"
+    default_raw = getattr(variant, "default_value", None) if variant is not None else None
+    default = str(default_raw) if default_raw not in (None, "") else None
+
     return {
-        "name": str(v.name),
-        "type": v_type_field.name if v_type_field is not None else "STRING",
-        "required": bool(v.required) if hasattr(v, "required") else False,
+        "name": name,
+        "type": var_type,
+        "required": bool(getattr(v, "required", False)),
         "description": str(v.description) if getattr(v, "description", None) else None,
-        "default": str(v.default) if getattr(v, "default", None) else None,
+        "default": default,
     }

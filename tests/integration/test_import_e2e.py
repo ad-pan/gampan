@@ -31,9 +31,11 @@ from gampan.cli.main import app
 
 _CASSETTES = Path("tests/integration/cassettes")
 
-# When recording, point at the user's real test network. Defaults to a placeholder
-# so playback tests don't need any env var.
-_NETWORK = os.environ.get("GAMPAN_TEST_NETWORK", "21700000000")
+# Default network is the cassette placeholder. During recording the conftest
+# rewrites the real GAMPAN_TEST_NETWORK value to this same placeholder before
+# the cassette is written, so playback and the URLs stored in the cassette
+# always agree on "0".
+_NETWORK = os.environ.get("GAMPAN_TEST_NETWORK", "0")
 
 
 def _cassette_exists(name: str) -> bool:

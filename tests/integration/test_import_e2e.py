@@ -3,8 +3,13 @@
 Cassettes must be pre-recorded by running the same test against a real GAM sandbox
 with VCR_RECORD=once.  Until cassettes exist every test is individually skipped.
 
-Record with:
-    VCR_RECORD=once bash scripts/record_cassettes.sh
+Record with (from repo root):
+
+    export GAMPAN_TEST_NETWORK=<your-sandbox-network-code>
+    VCR_RECORD=once uv run pytest tests/integration/test_import_e2e.py \\
+        -k test_e2e_import_creative_templates -v
+
+For playback (CI / offline) leave VCR_RECORD unset and the cassettes drive everything.
 
 Cassette naming convention: <test_name>.yaml under tests/integration/cassettes/.
 """
@@ -12,6 +17,7 @@ Cassette naming convention: <test_name>.yaml under tests/integration/cassettes/.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -25,6 +31,10 @@ from gampan.cli.main import app
 
 _CASSETTES = Path("tests/integration/cassettes")
 
+# When recording, point at the user's real test network. Defaults to a placeholder
+# so playback tests don't need any env var.
+_NETWORK = os.environ.get("GAMPAN_TEST_NETWORK", "21700000000")
+
 
 def _cassette_exists(name: str) -> bool:
     return (_CASSETTES / f"{name}.yaml").exists()
@@ -37,7 +47,7 @@ def _skip_if_no_cassette(name: str) -> pytest.MarkDecorator:
     )
 
 
-def _scaffold(tmp_path: Path, network_code: str = "21700000000") -> None:
+def _scaffold(tmp_path: Path, network_code: str = _NETWORK) -> None:
     """Write minimal .gampan/ scaffold into tmp_path."""
     gampan_dir = tmp_path / ".gampan"
     gampan_dir.mkdir()
@@ -91,7 +101,76 @@ _SAMPLE_YAML_UPDATED = (
 
 
 # ---------------------------------------------------------------------------
-# Original smoke test (kept intact, updated skip logic to use helper)
+# READ-ONLY round-trip cassettes (target for v0.1.0)
+#
+# These tests exercise only `import` (REST list) and `plan` (REST list again
+# + local YAML diff). No GAM-side writes, so no permission/template_id
+# coupling. Cassette recording requires only Trafficker-level access on the
+# target test network.
+# ---------------------------------------------------------------------------
+
+
+@_skip_if_no_cassette("test_e2e_import_creative_templates")
+def test_e2e_import_creative_templates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cassette: None
+) -> None:
+    """`gampan import --resource creative-templates` against the recorded sandbox.
+
+    Validates the full REST CreativeTemplate read path:
+      list_creative_templates pager → proto-plus dict conversion →
+      pydantic CreativeTemplate model → YAML writer → state.json.
+
+    Record:
+        export GAMPAN_TEST_NETWORK=<sandbox>
+        VCR_RECORD=once uv run pytest tests/integration/test_import_e2e.py \\
+            -k test_e2e_import_creative_templates -v
+    """
+    monkeypatch.chdir(tmp_path)
+    _scaffold(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(app, ["import", "--resource", "creative-templates"])
+    assert result.exit_code == 0, result.output
+
+    # Cassette captured whatever the sandbox had — assert *at least one* template
+    # was imported. Exact count is sandbox-specific.
+    state = json.loads((tmp_path / ".gampan" / "state.json").read_text())
+    n = len([k for k in state["resources"] if k.startswith("CreativeTemplate:")])
+    assert n >= 1, f"expected ≥1 CreativeTemplate in state, got {n}"
+
+
+@_skip_if_no_cassette("test_e2e_plan_round_trip_clean")
+def test_e2e_plan_round_trip_clean(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, cassette: None
+) -> None:
+    """Run `gampan plan` over a directory we just imported. Expect zero pending
+    changes — proves the import → plan round-trip is checksum-stable.
+
+    Record (in the same shell session as the import recording, so the cassette
+    sees the same set of remote resources):
+
+        VCR_RECORD=once uv run pytest tests/integration/test_import_e2e.py \\
+            -k test_e2e_plan_round_trip_clean -v
+    """
+    monkeypatch.chdir(tmp_path)
+    _scaffold(tmp_path)
+
+    runner = CliRunner()
+    imp = runner.invoke(app, ["import", "--resource", "creative-templates"])
+    assert imp.exit_code == 0, imp.output
+
+    plan = runner.invoke(app, ["plan"])
+    # Exit code 0 (clean) — `--detailed-exitcode` is default-on; non-zero means drift.
+    assert plan.exit_code == 0, (
+        f"expected clean plan (exit 0) after fresh import; got {plan.exit_code}.\n{plan.output}"
+    )
+    assert "to add, 0 to change, 0 to destroy" in plan.output, (
+        f"plan summary should report all zeros after fresh import:\n{plan.output}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# WRITE-PATH cassettes (deferred to v0.2 — need SOAP NativeStyle write perms
+# and a template_id known to exist on the target network)
 # ---------------------------------------------------------------------------
 
 

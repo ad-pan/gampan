@@ -28,8 +28,10 @@ class CreativeTemplateRestClient:
         out: list[tuple[str, Resource]] = []
         pager = self._svc.list_creative_templates(parent=self._parent)
         for item in pager:
+            # gam_id is the trailing numeric id on the GAM resource path;
+            # display_name is the user-friendly label and drives our model's `name`.
+            gam_id = str(item.name).rsplit("/", 1)[-1]
             raw = _proto_to_remote_dict(item)
-            gam_id = str(raw["name"]).rsplit("/", 1)[-1]
             out.append((gam_id, CreativeTemplate.from_remote(raw)))
         return out
 
@@ -64,16 +66,23 @@ def _proto_to_remote_dict(item: Any) -> dict[str, Any]:
     """Convert a proto-plus CreativeTemplate message into the dict shape
     that ``CreativeTemplate.from_remote`` expects.
 
+    The proto's ``name`` is a GAM resource path
+    (``networks/<n>/creativeTemplates/<id>``). The user-friendly label is
+    in ``display_name``. We use ``display_name`` for our model's ``name``
+    field — the gam_id (already on each state.json entry) carries identity.
+    Fallback to the numeric id when ``display_name`` is empty.
+
     Handles:
     * Enum fields (status, type_) → string names instead of integers.
     * Repeated `variables` → list of dicts with string enum types.
     """
-    # Field-by-field access is more predictable than dict round-tripping
-    # because enums need explicit `.name` extraction.
     type_field = getattr(item, "type_", None) or getattr(item, "type", None)
     status_field = getattr(item, "status", None)
+    display = str(getattr(item, "display_name", "") or "").strip()
+    if not display:
+        display = str(item.name).rsplit("/", 1)[-1]
     raw: dict[str, Any] = {
-        "name": str(item.name),
+        "name": display,
         "description": str(item.description) if item.description else "",
         "snippet": str(item.snippet) if item.snippet else "",
         "type": type_field.name if type_field else "CUSTOM",

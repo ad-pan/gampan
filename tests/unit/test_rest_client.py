@@ -8,10 +8,15 @@ import pytest
 from gampan.gam.clients.rest import CreativeTemplateRestClient
 
 
-def _proto_item(name: str, snippet: str = "<div/>"):
+def _proto_item(
+    resource_path: str,
+    display_name: str = "",
+    snippet: str = "<div/>",
+):
     """Mimic a proto-plus CreativeTemplate message with attribute access."""
     m = MagicMock()
-    m.name = name
+    m.name = resource_path  # GAM resource path (identity)
+    m.display_name = display_name  # user-friendly label (our model.name)
     m.description = "test"
     m.snippet = snippet
     # Enum-like: object with .name attribute
@@ -23,28 +28,43 @@ def _proto_item(name: str, snippet: str = "<div/>"):
     return m
 
 
-def test_list_iterates_pager_and_maps_to_models() -> None:
+def test_list_uses_display_name_for_model_name_and_id_for_gam_id() -> None:
     svc = MagicMock()
     svc.list_creative_templates.return_value = iter(
         [
-            _proto_item("networks/123/creativeTemplates/ct-1"),
-            _proto_item("networks/123/creativeTemplates/ct-2"),
+            _proto_item("networks/123/creativeTemplates/ct-1", display_name="Standard Text Ad"),
+            _proto_item("networks/123/creativeTemplates/ct-2", display_name="Premium Display"),
         ]
     )
     c = CreativeTemplateRestClient(svc, network_path="networks/123")
     items = c.list()
     assert len(items) == 2
-    assert items[0][0] == "ct-1"
-    assert items[0][1].name == "networks/123/creativeTemplates/ct-1"
-    assert items[1][0] == "ct-2"
+    # gam_id comes from the resource path; model.name comes from display_name.
+    assert items[0] == ("ct-1", items[0][1])
+    assert items[0][1].name == "Standard Text Ad"
+    assert items[1] == ("ct-2", items[1][1])
+    assert items[1][1].name == "Premium Display"
+
+
+def test_list_falls_back_to_numeric_id_when_display_name_empty() -> None:
+    svc = MagicMock()
+    svc.list_creative_templates.return_value = iter(
+        [_proto_item("networks/123/creativeTemplates/ct-1", display_name="")]
+    )
+    c = CreativeTemplateRestClient(svc, network_path="networks/123")
+    items = c.list()
+    assert items[0][1].name == "ct-1"
 
 
 def test_get_uses_full_resource_name() -> None:
     svc = MagicMock()
-    svc.get_creative_template.return_value = _proto_item("networks/123/creativeTemplates/ct-9")
+    svc.get_creative_template.return_value = _proto_item(
+        "networks/123/creativeTemplates/ct-9",
+        display_name="Standard Text Ad",
+    )
     c = CreativeTemplateRestClient(svc, network_path="networks/123")
     t = c.get("ct-9")
-    assert t.name == "networks/123/creativeTemplates/ct-9"
+    assert t.name == "Standard Text Ad"
     svc.get_creative_template.assert_called_once_with(
         name="networks/123/creativeTemplates/ct-9",
     )
@@ -94,6 +114,7 @@ def test_list_maps_oneof_variable_to_string_type() -> None:
     """REST variables use a oneof; verify string_variable maps to type=STRING."""
     item = MagicMock()
     item.name = "networks/123/creativeTemplates/ct-1"
+    item.display_name = "Variant Test"
     item.description = "t"
     item.snippet = "<div/>"
     item.type_ = MagicMock()

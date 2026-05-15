@@ -63,6 +63,8 @@ def run(
     else:
         for c in plan.changes:
             typer.echo(f"  {c.action.value:9s} {c.key}")
+            for line in c.diff_summary:
+                typer.echo(line)
         typer.echo("")
         for action, count in plan.summary().items():
             typer.echo(f"{action.value}: {count}")

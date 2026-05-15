@@ -26,7 +26,7 @@ def _to_dict(raw: Any) -> dict[str, Any]:
     # the import cost at gampan startup when SOAP isn't used.
     from zeep.helpers import serialize_object
 
-    return dict(serialize_object(raw, target_cls=dict))
+    return dict(serialize_object(raw, target_cls=dict))  # type: ignore[no-untyped-call]
 
 
 class NativeStyleSoapClient:

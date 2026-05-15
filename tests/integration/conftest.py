@@ -14,17 +14,20 @@ Header filtering:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import pytest
 import vcr as vcrlib
 
-_CASSETTE_DIR = "tests/integration/cassettes"
+# Absolute path so cassettes survive tests that monkeypatch.chdir(tmp_path).
+# Resolved relative to this conftest, not cwd, so editor-runs from anywhere work.
+_CASSETTE_DIR = (Path(__file__).resolve().parent / "cassettes").resolve()
 
 # Honour VCR_RECORD env var; default to "none" (playback-only) when absent.
 _RECORD_MODE = os.environ.get("VCR_RECORD", "none")
 
 vcr_default = vcrlib.VCR(
-    cassette_library_dir=_CASSETTE_DIR,
+    cassette_library_dir=str(_CASSETTE_DIR),
     record_mode=_RECORD_MODE,
     match_on=["method", "scheme", "host", "port", "path", "query"],
     filter_headers=["authorization", "x-goog-api-key"],
@@ -35,12 +38,14 @@ vcr_default = vcrlib.VCR(
 def cassette(request: pytest.FixtureRequest) -> None:  # type: ignore[return]
     """Activate the VCR cassette named after the test function.
 
-    The cassette file is <test_name>.yaml.  When in playback mode ("none") and
-    the file does not exist, vcrpy raises CassetteNotFoundError which is caught
-    and converted into a pytest skip so CI stays green while cassettes are absent.
+    The cassette file is <test_name>.yaml under tests/integration/cassettes/
+    (resolved absolutely so monkeypatch.chdir doesn't relocate the write target).
+    When in playback mode ("none") and the file does not exist, vcrpy raises
+    CassetteNotFoundError which is caught and converted into a pytest skip so
+    CI stays green while cassettes are absent.
     """
     name = request.node.name
-    cassette_path = f"{_CASSETTE_DIR}/{name}.yaml"
+    cassette_path = str(_CASSETTE_DIR / f"{name}.yaml")
     try:
         with vcr_default.use_cassette(cassette_path):
             yield

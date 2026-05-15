@@ -90,10 +90,7 @@ def validate_no_duplicates(raw: list[dict[str, Any]]) -> None:
     seen: dict[str, str] = {}
     for item in raw:
         gam_id = item.get("_gam_id")
-        if gam_id:
-            key = f"{item['kind']}:_gam_id:{gam_id}"
-        else:
-            key = f"{item['kind']}:{item['name']}"
+        key = f"{item['kind']}:_gam_id:{gam_id}" if gam_id else f"{item['kind']}:{item['name']}"
         if key in seen:
             raise SchemaError(
                 f"duplicate resource identity '{key}' "

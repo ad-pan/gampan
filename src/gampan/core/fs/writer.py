@@ -14,6 +14,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.representer import RoundTripRepresenter
+from ruamel.yaml.scalarstring import LiteralScalarString
 
 from gampan.core.protocols import Resource
 
@@ -53,10 +54,36 @@ def write_resource(repo_root: Path, resource: Resource) -> Path:
 
     yaml = YAML()
     yaml.default_flow_style = False
+    # Disable line wrapping so ruamel never picks folded (`>`) style, which
+    # collapses consecutive whitespace and breaks round-trip fidelity.
+    yaml.width = 2**31 - 1
     yaml.representer.add_representer(FileRef, _represent_fileref)
+    data = _to_user_yaml(resource.kind, resource.name, payload, side_files)
+    data = _normalise_strings(data)
     with yaml_path.open("w") as f:
-        yaml.dump(_to_user_yaml(resource.kind, resource.name, payload, side_files), f)
+        yaml.dump(data, f)
     return yaml_path
+
+
+def _normalise_strings(value: Any) -> Any:
+    """Walk the payload and force ``LiteralScalarString`` for multi-line strings
+    so newlines and indentation are preserved verbatim.
+
+    Single-line strings are left as plain ``str``: combined with
+    ``yaml.width = max`` this keeps ruamel from picking folded (``>``) style,
+    which would collapse consecutive whitespace and break round-trip fidelity.
+    """
+    if isinstance(value, FileRef):
+        return value
+    if isinstance(value, str):
+        if "\n" in value:
+            return LiteralScalarString(value)
+        return value
+    if isinstance(value, dict):
+        return {k: _normalise_strings(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_normalise_strings(v) for v in value]
+    return value
 
 
 def _emit_side_files(dir_path: Path, slug: str, payload: dict[str, Any]) -> dict[str, Path]:

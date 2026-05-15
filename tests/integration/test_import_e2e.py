@@ -40,10 +40,23 @@ def _cassette_exists(name: str) -> bool:
     return (_CASSETTES / f"{name}.yaml").exists()
 
 
+def _recording() -> bool:
+    """True when VCR_RECORD is set to a recording mode (anything except 'none')."""
+    return os.environ.get("VCR_RECORD", "none").lower() not in ("", "none")
+
+
 def _skip_if_no_cassette(name: str) -> pytest.MarkDecorator:
+    """Skip when neither a cassette is present nor VCR_RECORD asks us to record.
+
+    During recording (VCR_RECORD=once/new/all) we let the test run so vcrpy can
+    populate the cassette from real API responses.
+    """
     return pytest.mark.skipif(
-        not _cassette_exists(name),
-        reason=f"cassette {name}.yaml not recorded yet — run scripts/record_cassettes.sh",
+        not _cassette_exists(name) and not _recording(),
+        reason=(
+            f"cassette {name}.yaml not recorded yet — "
+            "set VCR_RECORD=once + GAMPAN_TEST_NETWORK to record"
+        ),
     )
 
 

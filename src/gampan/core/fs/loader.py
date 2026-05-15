@@ -80,10 +80,20 @@ def _snake_to_pascal(s: str) -> str:
 
 
 def validate_no_duplicates(raw: list[dict[str, Any]]) -> None:
-    """Raise SchemaError on any `<kind>:<name>` collision across files."""
+    """Raise SchemaError on any duplicate resource identity across files.
+
+    Identity is the imported gam_id (``_gam_id`` field) when present, since
+    GAM allows multiple resources to share the same user-facing name. For
+    user-authored YAMLs (no ``_gam_id`` yet), fall back to ``<kind>:<name>``
+    — a true name collision in unimported state IS a real conflict.
+    """
     seen: dict[str, str] = {}
     for item in raw:
-        key = f"{item['kind']}:{item['name']}"
+        gam_id = item.get("_gam_id")
+        if gam_id:
+            key = f"{item['kind']}:_gam_id:{gam_id}"
+        else:
+            key = f"{item['kind']}:{item['name']}"
         if key in seen:
             raise SchemaError(
                 f"duplicate resource identity '{key}' "

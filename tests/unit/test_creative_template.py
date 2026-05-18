@@ -60,6 +60,41 @@ def test_eligibility_flags_default_false() -> None:
     assert out["safe_frame_compatible"] is False
 
 
+def test_native_format_drops_snippet_on_from_remote() -> None:
+    """Native ad formats ship with Google's auto-generated <table> HTML.
+    It is read-only via REST Beta and pulling it down is noise, so
+    from_remote() drops it. Checksum stays stable across imports because
+    the snippet is uniformly empty for native formats."""
+    raw = {
+        "name": "native-content-ad",
+        "description": "",
+        "type": "STANDARD",
+        "snippet": "<table><tr><td>[%headline%]</td></tr></table>" * 10,
+        "variables": [],
+        "status": "ACTIVE",
+        "native_eligible": True,
+    }
+    t = CreativeTemplate.from_remote(raw)
+    assert t.snippet == "", "native format must not carry the HTML snippet"
+    assert t.to_remote()["snippet"] == ""
+
+
+def test_regular_creative_template_keeps_snippet() -> None:
+    """Drop applies only to native formats — regular templates keep their HTML."""
+    snippet = "<div>[%body%]</div>"
+    raw = {
+        "name": "interstitial",
+        "description": "",
+        "type": "CUSTOM",
+        "snippet": snippet,
+        "variables": [],
+        "status": "ACTIVE",
+        "native_eligible": False,
+    }
+    t = CreativeTemplate.from_remote(raw)
+    assert t.snippet == snippet
+
+
 def test_native_video_flags_round_trip() -> None:
     """A native-video creative template (Google's `native-video-content-ad`)
     round-trips all four eligibility flags."""

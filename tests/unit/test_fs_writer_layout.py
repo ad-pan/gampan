@@ -59,6 +59,26 @@ def test_native_eligible_creative_template_writes_to_native_formats_dir(tmp_path
     assert not (tmp_path / "creative-templates" / "feed-native.native-format.yaml").exists()
 
 
+def test_native_format_yaml_omits_snippet_key(tmp_path: Path) -> None:
+    """Native format YAML must not include a `snippet:` line — the in-memory
+    model already drops the HTML, so emitting an empty key would be misleading
+    noise and would force users to re-imagine the field's meaning."""
+    ct = _ct(name="feed-native", native_eligible=True)
+    yaml_path, _ = write_resource(tmp_path, ct, gam_id="42")
+    body = yaml_path.read_text()
+    assert "snippet" not in body, body
+    # And no orphan .html side file is left behind.
+    assert not (tmp_path / "native-formats" / "feed-native.native-format.html").exists()
+
+
+def test_regular_creative_template_yaml_keeps_snippet_key(tmp_path: Path) -> None:
+    """Drop is native-format-specific — regular CreativeTemplates still emit
+    the snippet so the body of the template is round-trippable."""
+    ct = _ct(name="interstitial", native_eligible=False)
+    yaml_path, _ = write_resource(tmp_path, ct, gam_id="1")
+    assert "snippet:" in yaml_path.read_text()
+
+
 def test_long_snippet_promoted_to_side_file_with_matching_suffix(tmp_path: Path) -> None:
     """Side files (.html / .css) inherit the kind-suffix so they sort next
     to their parent YAML and stay self-identifying when copied."""

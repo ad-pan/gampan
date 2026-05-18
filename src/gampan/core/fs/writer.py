@@ -205,13 +205,18 @@ def _to_user_yaml(
         }
         user["status"] = payload["status"]
     elif kind == "CreativeTemplate":
+        native_eligible = bool(payload.get("native_eligible", False))
         user["description"] = payload.get("description", "")
         user["type"] = payload["type"]
         user["is_interstitial"] = bool(payload.get("is_interstitial", False))
-        user["native_eligible"] = bool(payload.get("native_eligible", False))
+        user["native_eligible"] = native_eligible
         user["native_video_eligible"] = bool(payload.get("native_video_eligible", False))
         user["safe_frame_compatible"] = bool(payload.get("safe_frame_compatible", False))
-        user["snippet"] = _ref_or_inline("snippet", payload, side_files)
+        # Native ad formats omit `snippet:` — the model drops Google's stock
+        # <table> HTML on import (see CreativeTemplate.from_remote). Emitting
+        # an empty `snippet:` line would just be noise.
+        if not native_eligible:
+            user["snippet"] = _ref_or_inline("snippet", payload, side_files)
         user["variables"] = payload.get("variables", [])
         user["status"] = payload["status"]
     return user

@@ -33,7 +33,9 @@ class CreativeTemplate(BaseModel):
     # USER_DEFINED/SYSTEM_DEFINED — when v0.2 adds the SOAP write path for
     # CreativeTemplate, the converter there must remap to these values.
     type: Literal["STANDARD", "CUSTOM"] = "CUSTOM"
-    snippet: str
+    # Defaults to "" because native ad formats intentionally drop the snippet
+    # (Google's auto-generated <table> layout) — see from_remote().
+    snippet: str = ""
     variables: list[TemplateVariable] = Field(default_factory=list)
     status: Literal["ACTIVE", "INACTIVE", "DELETED"] = "ACTIVE"
 
@@ -58,15 +60,23 @@ class CreativeTemplate(BaseModel):
         raw_status = data.get("status", "ACTIVE")
         if raw_status not in _STATUS_VALUES:
             raw_status = "ACTIVE"
+        native_eligible = bool(data.get("native_eligible") or False)
+        # Native ad formats ship with Google's stock <table> HTML snippet
+        # that the GAM UI auto-generates. It is not user-editable today
+        # (REST Beta has no create/update for CreativeTemplate) and pulling
+        # it down adds noise to the repo, so we drop it on import. Regular
+        # creative templates keep their snippet as authored.
+        raw_snippet = data.get("snippet", "")
+        snippet = "" if native_eligible else raw_snippet
         return cls(
             name=data["name"],
             description=data.get("description", ""),
             type=raw_type,
-            snippet=data.get("snippet", ""),
+            snippet=snippet,
             variables=[TemplateVariable(**v) for v in data.get("variables", [])],
             status=raw_status,
             is_interstitial=bool(data.get("is_interstitial") or False),
-            native_eligible=bool(data.get("native_eligible") or False),
+            native_eligible=native_eligible,
             native_video_eligible=bool(data.get("native_video_eligible") or False),
             safe_frame_compatible=bool(data.get("safe_frame_compatible") or False),
         )

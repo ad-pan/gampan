@@ -9,10 +9,22 @@ from gampan.core.errors import SchemaError
 from gampan.core.fs.config import Config
 from gampan.core.fs.refs import make_yaml
 
+# Per-kind config-key mapping used by the per_kind layout. Native formats are
+# CreativeTemplates with ``native_eligible=True``, not a distinct Kind, so they
+# do not appear here.
 CONVENTION_MAP = {
     "native_style": "native-styles",
     "creative_template": "creative-templates",
 }
+
+# Directories scanned in convention mode. Each may contain mixed kinds — the
+# loader trusts the ``kind:`` field in the YAML body, the directory and
+# filename suffix are organisational hints.
+_CONVENTION_DIRS: tuple[str, ...] = (
+    "creative-templates",
+    "native-formats",
+    "native-styles",
+)
 
 
 def load_all(repo_root: Path, config: Config) -> list[dict[str, Any]]:
@@ -30,7 +42,7 @@ def load_all(repo_root: Path, config: Config) -> list[dict[str, Any]]:
 
 def _load_convention(repo_root: Path) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    for dirname in CONVENTION_MAP.values():
+    for dirname in _CONVENTION_DIRS:
         for yaml_path in sorted((repo_root / dirname).glob("*.yaml")):
             data = _read_yaml(yaml_path, repo_root)
             if "kind" not in data:

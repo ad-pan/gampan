@@ -19,10 +19,30 @@ from ruamel.yaml.scalarstring import LiteralScalarString
 
 from gampan.core.protocols import Resource
 
-_KIND_TO_DIR = {
-    "NativeStyle": "native-styles",
-    "CreativeTemplate": "creative-templates",
+_KIND_LAYOUT: dict[str, tuple[str, str]] = {
+    # kind → (default_directory, filename-suffix)
+    "NativeStyle": ("native-styles", "native-style"),
+    "CreativeTemplate": ("creative-templates", "creative-template"),
 }
+
+# Override layout for CreativeTemplates with ``native_eligible=True``.
+# Native ad formats are not a distinct API resource — GAM returns them
+# from the same CreativeTemplate endpoint — but the GAM UI surfaces them
+# in their own section, and we mirror that on disk for grep-ability.
+_NATIVE_FORMAT_LAYOUT: tuple[str, str] = ("native-formats", "native-format")
+
+
+def _layout_for(resource: Resource) -> tuple[str, str]:
+    """Return ``(directory, filename-suffix)`` for a resource.
+
+    The suffix becomes part of the filename: ``<slug>.<suffix>.yaml`` (and
+    any side files: ``<slug>.<suffix>.html`` / ``.css``). This keeps files
+    self-identifying when flattened or pasted out of their directory.
+    """
+    if resource.kind == "CreativeTemplate" and getattr(resource, "native_eligible", False):
+        return _NATIVE_FORMAT_LAYOUT
+    return _KIND_LAYOUT[resource.kind]
+
 
 # Cap on filename stem length. Most filesystems allow 255 bytes per component,
 # but Korean / CJK takes 3 bytes per char in UTF-8 — keep some headroom.
@@ -76,8 +96,13 @@ def write_resource(
     resource: Resource,
     gam_id: str,
     seen_slugs: set[str] | None = None,
-) -> Path:
-    """Write the YAML + any side files, returning the YAML path.
+) -> tuple[Path, str]:
+    """Write the YAML + any side files.
+
+    Returns ``(yaml_path, slug_stem)`` — the slug stem is the part of the
+    filename before the ``.<kind-suffix>.yaml`` tail (e.g. ``card-ad-102``
+    for ``card-ad-102.native-style.yaml``), so callers can compare against
+    the pre-disambiguation slug without re-parsing the filename.
 
     Args:
         repo_root: Root of the gampan repo.
@@ -93,7 +118,7 @@ def write_resource(
     if seen_slugs is None:
         seen_slugs = set()
 
-    dir_name = _KIND_TO_DIR[resource.kind]
+    dir_name, suffix = _layout_for(resource)
     target_dir = repo_root / dir_name
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -106,11 +131,11 @@ def write_resource(
         stem = slug
     seen_slugs.add(stem)
 
-    yaml_path = target_dir / f"{stem}.yaml"
+    yaml_path = target_dir / f"{stem}.{suffix}.yaml"
 
     payload = resource.to_remote()
     # Promote html/snippet/css to side files for editor support
-    side_files = _emit_side_files(target_dir, stem, payload)
+    side_files = _emit_side_files(target_dir, stem, suffix, payload)
 
     yaml = YAML()
     yaml.default_flow_style = False
@@ -122,7 +147,7 @@ def write_resource(
     data = _normalise_strings(data)
     with yaml_path.open("w") as f:
         yaml.dump(data, f)
-    return yaml_path
+    return yaml_path, stem
 
 
 def _normalise_strings(value: Any) -> Any:
@@ -146,12 +171,16 @@ def _normalise_strings(value: Any) -> Any:
     return value
 
 
-def _emit_side_files(dir_path: Path, slug: str, payload: dict[str, Any]) -> dict[str, Path]:
+def _emit_side_files(
+    dir_path: Path, slug: str, suffix: str, payload: dict[str, Any]
+) -> dict[str, Path]:
     out: dict[str, Path] = {}
     for field in ("htmlSnippet", "cssSnippet", "snippet"):
         if field in payload and isinstance(payload[field], str) and len(payload[field]) > 80:
             ext = "html" if field != "cssSnippet" else "css"
-            side = dir_path / f"{slug}.{ext}"
+            # Side files inherit the kind-suffix so they sort next to their YAML
+            # and stay self-identifying when copied out of the directory.
+            side = dir_path / f"{slug}.{suffix}.{ext}"
             side.write_text(payload[field])
             out[field] = side
     return out

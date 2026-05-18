@@ -40,7 +40,9 @@ def test_import_writes_yaml_and_state(tmp_path: Path, monkeypatch: pytest.Monkey
         runner = CliRunner()
         result = runner.invoke(app, ["import", "--resource", "native-styles"])
     assert result.exit_code == 0, result.output
-    yaml_path = tmp_path / "native-styles" / "card.yaml"
+    # NativeStyles land in native-styles/ with the .native-style.yaml suffix
+    # so the file remains self-identifying even when flattened.
+    yaml_path = tmp_path / "native-styles" / "card.native-style.yaml"
     assert yaml_path.exists()
     state_path = tmp_path / ".gampan" / "state.json"
     assert state_path.exists()
@@ -65,10 +67,12 @@ def test_import_korean_name_preserved_in_filename(
         runner = CliRunner()
         result = runner.invoke(app, ["import", "--resource", "native-styles"])
     assert result.exit_code == 0, result.output
-    # CJK passes through slugify unchanged
-    yaml_path = tmp_path / "native-styles" / "한국어광고.yaml"
+    # CJK passes through slugify unchanged; kind-suffix still appended.
+    yaml_path = tmp_path / "native-styles" / "한국어광고.native-style.yaml"
     ns_dir = tmp_path / "native-styles"
-    assert yaml_path.exists(), f"expected 한국어광고.yaml, got: {list(ns_dir.iterdir())}"
+    assert yaml_path.exists(), (
+        f"expected 한국어광고.native-style.yaml, got: {list(ns_dir.iterdir())}"
+    )
     # gam_id remains the canonical state identity
     state_path = tmp_path / ".gampan" / "state.json"
     assert "NativeStyle:777" in state_path.read_text()
@@ -90,7 +94,7 @@ def test_import_unrepresentable_name_falls_back_to_gam_id(
         runner = CliRunner()
         result = runner.invoke(app, ["import", "--resource", "native-styles"])
     assert result.exit_code == 0, result.output
-    assert (tmp_path / "native-styles" / "777.yaml").exists()
+    assert (tmp_path / "native-styles" / "777.native-style.yaml").exists()
 
 
 def test_import_duplicate_slug_appends_gam_id(
@@ -113,9 +117,12 @@ def test_import_duplicate_slug_appends_gam_id(
         result = runner.invoke(app, ["import", "--resource", "native-styles"])
     assert result.exit_code == 0, result.output
     ns_dir = tmp_path / "native-styles"
-    stems = {p.stem for p in ns_dir.glob("*.yaml")}
-    assert "card-ad" in stems
-    assert "card-ad-102" in stems
+    # `Path.stem` strips only the trailing `.yaml`, leaving e.g.
+    # ``card-ad.native-style`` — strip the kind-suffix so we can assert on
+    # the slug part alone.
+    slug_stems = {p.stem.removesuffix(".native-style") for p in ns_dir.glob("*.yaml")}
+    assert "card-ad" in slug_stems
+    assert "card-ad-102" in slug_stems
     state = json.loads((tmp_path / ".gampan" / "state.json").read_text())
     assert "NativeStyle:101" in state["resources"]
     assert "NativeStyle:102" in state["resources"]

@@ -44,8 +44,7 @@ def run(
             from gampan.core.fs.writer import slugify as _slugify
 
             slug_before = _slugify(r.name)
-            yaml_path = write_resource(root, r, gam_id=gam_id, seen_slugs=seen_slugs)
-            stem = yaml_path.stem
+            yaml_path, stem = write_resource(root, r, gam_id=gam_id, seen_slugs=seen_slugs)
             if slug_before and stem != slug_before:
                 disambiguated.append((slug_before, stem))
 

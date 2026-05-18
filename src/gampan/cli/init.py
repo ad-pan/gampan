@@ -29,11 +29,12 @@ def run(
             f,
         )
 
-    for d in ("native-styles", "creative-templates"):
+    for d in ("native-styles", "creative-templates", "native-formats"):
         (root / d).mkdir(exist_ok=True)
 
     typer.echo(f"initialized {cfg_file}")
     typer.echo("  native-styles/ ready")
     typer.echo("  creative-templates/ ready")
+    typer.echo("  native-formats/ ready")
     if not non_interactive:
         typer.echo("\nNext: `gampan auth login`, then `gampan import`.")

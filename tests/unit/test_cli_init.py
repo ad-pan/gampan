@@ -15,6 +15,7 @@ def test_init_creates_skeleton(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     assert (tmp_path / ".gampan" / "config.yml").exists()
     assert (tmp_path / "native-styles").exists()
     assert (tmp_path / "creative-templates").exists()
+    assert (tmp_path / "native-formats").exists()
 
 
 def test_init_writes_network_code(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

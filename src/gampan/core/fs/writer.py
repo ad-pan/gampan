@@ -178,6 +178,10 @@ def _to_user_yaml(
     elif kind == "CreativeTemplate":
         user["description"] = payload.get("description", "")
         user["type"] = payload["type"]
+        user["is_interstitial"] = bool(payload.get("is_interstitial", False))
+        user["native_eligible"] = bool(payload.get("native_eligible", False))
+        user["native_video_eligible"] = bool(payload.get("native_video_eligible", False))
+        user["safe_frame_compatible"] = bool(payload.get("safe_frame_compatible", False))
         user["snippet"] = _ref_or_inline("snippet", payload, side_files)
         user["variables"] = payload.get("variables", [])
         user["status"] = payload["status"]

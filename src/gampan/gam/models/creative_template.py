@@ -37,6 +37,17 @@ class CreativeTemplate(BaseModel):
     variables: list[TemplateVariable] = Field(default_factory=list)
     status: Literal["ACTIVE", "INACTIVE", "DELETED"] = "ACTIVE"
 
+    # Eligibility flags — GAM REST proto fields:
+    #   interstitial            → is_interstitial   (renamed for clarity)
+    #   native_eligible         → native_eligible
+    #   native_video_eligible   → native_video_eligible
+    #   safe_frame_compatible   → safe_frame_compatible
+    # `native_eligible=True` is what marks a template as a "native ad format".
+    is_interstitial: bool = False
+    native_eligible: bool = False
+    native_video_eligible: bool = False
+    safe_frame_compatible: bool = False
+
     @classmethod
     def from_remote(cls, data: dict[str, Any]) -> CreativeTemplate:
         # Normalise UNSPECIFIED / unknown enum values to sensible defaults so
@@ -54,6 +65,10 @@ class CreativeTemplate(BaseModel):
             snippet=data.get("snippet", ""),
             variables=[TemplateVariable(**v) for v in data.get("variables", [])],
             status=raw_status,
+            is_interstitial=bool(data.get("is_interstitial") or False),
+            native_eligible=bool(data.get("native_eligible") or False),
+            native_video_eligible=bool(data.get("native_video_eligible") or False),
+            safe_frame_compatible=bool(data.get("safe_frame_compatible") or False),
         )
 
     def to_remote(self) -> dict[str, Any]:
@@ -64,6 +79,10 @@ class CreativeTemplate(BaseModel):
             "snippet": self.snippet,
             "variables": [v.model_dump(exclude_none=True) for v in self.variables],
             "status": self.status,
+            "is_interstitial": self.is_interstitial,
+            "native_eligible": self.native_eligible,
+            "native_video_eligible": self.native_video_eligible,
+            "safe_frame_compatible": self.safe_frame_compatible,
         }
 
     def checksum(self) -> str:

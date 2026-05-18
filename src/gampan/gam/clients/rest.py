@@ -88,6 +88,12 @@ def _proto_to_remote_dict(item: Any) -> dict[str, Any]:
         "type": type_field.name if type_field else "CUSTOM",
         "status": status_field.name if status_field else "ACTIVE",
         "variables": [_var_to_dict(v) for v in item.variables],
+        # Eligibility flags. Proto field for `is_interstitial` is `interstitial`
+        # (without the `is_` prefix); the rest match.
+        "is_interstitial": bool(getattr(item, "interstitial", False)),
+        "native_eligible": bool(getattr(item, "native_eligible", False)),
+        "native_video_eligible": bool(getattr(item, "native_video_eligible", False)),
+        "safe_frame_compatible": bool(getattr(item, "safe_frame_compatible", False)),
     }
     # Drop None values from variables (cleaner output; pydantic accepts absent optional keys)
     for var in raw["variables"]:

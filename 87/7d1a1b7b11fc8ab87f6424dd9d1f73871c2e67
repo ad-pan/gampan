@@ -1,0 +1,89 @@
+src/gampan/gam/models/creative_template.py
+  ea76f3f7c1beddbc 40-50,68-71,82-85
+src/gampan/gam/clients/rest.py
+  ea76f3f7c1beddbc 91-96
+src/gampan/core/fs/writer.py
+  ea76f3f7c1beddbc 181-189
+tests/unit/test_creative_template.py
+  ea76f3f7c1beddbc 38-86
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "877d1a1b7b11fc8ab87f6424dd9d1f73871c2e67",
+  "prompts": {
+    "ea76f3f7c1beddbc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d17f101d-ad8d-4ec8-bdb1-a3b5faf12d93",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T03:50:52.801Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T04:52:25.229Z"
+        },
+        {
+          "id": "cmux:open",
+          "ts": "2026-04-24T04:57:27.810Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:05:30.162Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T07:31:23.839Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:03:27.669Z"
+        },
+        {
+          "id": "zb-workflow:start",
+          "ts": "2026-04-24T08:44:29.085Z"
+        },
+        {
+          "id": "superpowers:brainstorming",
+          "ts": "2026-05-13T02:25:33.679Z"
+        },
+        {
+          "id": "superpowers:writing-plans",
+          "ts": "2026-05-13T07:15:01.300Z"
+        },
+        {
+          "id": "superpowers:subagent-driven-development",
+          "ts": "2026-05-13T07:30:20.086Z"
+        },
+        {
+          "id": "superpowers:finishing-a-development-branch",
+          "ts": "2026-05-13T09:22:23.855Z"
+        }
+      ],
+      "tool_counts": {
+        "Skill": 11,
+        "Read": 62,
+        "ToolSearch": 5,
+        "mcp__plugin_atlassian_atlassian__getJiraIssue": 6,
+        "Bash": 233,
+        "mcp__plugin_atlassian_atlassian__getTransitionsForJiraIssue": 3,
+        "mcp__plugin_atlassian_atlassian__transitionJiraIssue": 3,
+        "TaskCreate": 47,
+        "TaskUpdate": 92,
+        "AskUserQuestion": 12,
+        "WebSearch": 2,
+        "WebFetch": 5,
+        "Write": 4,
+        "Edit": 120,
+        "Agent": 71,
+        "SendMessage": 1
+      },
+      "total_additions": 84,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

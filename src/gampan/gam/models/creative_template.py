@@ -9,6 +9,18 @@ from typing import Any, ClassVar, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class Choice(BaseModel):
+    """A single selectable option for a LIST (or constrained URL) TemplateVariable.
+
+    Mirrors GAM's ``CreativeTemplateVariable.{ListString,Url}Variable.Choice``:
+    the user-visible ``label`` may differ from the macro substitution ``value``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+    label: str
+    value: str
+
+
 class TemplateVariable(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
@@ -16,6 +28,17 @@ class TemplateVariable(BaseModel):
     required: bool = False
     description: str | None = None
     default: str | None = None
+    # LIST (and occasionally URL) variables carry a structured choice set.
+    # We preserve it end-to-end so Storybook can render a real dropdown and
+    # `gampan apply` can round-trip the template faithfully. Non-LIST/URL
+    # variants leave this as None; LIST variants without choices are
+    # admin-authored description-only variables (e.g. Hogangnono's
+    # TARGET_WINDOW) — also None.
+    choices: list[Choice] | None = None
+    # GAM exposes `allowOtherChoice` only on list/url variants. STRING/ASSET
+    # leave it as None so we don't pollute the YAML with an irrelevant flag.
+    # LIST/URL variants always populate it (False by default).
+    allow_other_choice: bool | None = None
 
 
 _TYPE_VALUES = {"STANDARD", "CUSTOM"}

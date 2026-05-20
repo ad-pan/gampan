@@ -108,7 +108,7 @@ _VARIANT_TYPE_MAP = {
     "url_variable": "URL",
     "list_string_variable": "LIST",
     "asset_variable": "ASSET",
-    "long_variable": "STRING",  # no LONG in our model; degrade to STRING for v0.1
+    "long_variable": "NUMBER",
 }
 
 # Subset of variants that carry a structured `choices` array + `allow_other_choice`
@@ -149,7 +149,17 @@ def _var_to_dict(v: Any) -> dict[str, Any]:
     var_type = _VARIANT_TYPE_MAP.get(variant_name or "", "STRING")
     name = str(getattr(v, "unique_display_name", "") or getattr(v, "label", "")) or "(unnamed)"
     default_raw = getattr(variant, "default_value", None) if variant is not None else None
-    default = str(default_raw) if default_raw not in (None, "") else None
+    # NUMBER variables carry an int (proto ``long_variable.default_value``); the
+    # value ``0`` is meaningful (e.g. zero-pixel border) so we explicitly keep
+    # it instead of treating it as "absent" the way we do for empty strings.
+    if default_raw is None:
+        default = None
+    elif isinstance(default_raw, (int, float)) and not isinstance(default_raw, bool):
+        default = str(default_raw)
+    elif default_raw == "":
+        default = None
+    else:
+        default = str(default_raw)
 
     # Extract structured choices for variants that expose them. The variant
     # subtype has a repeated `choices` field (each {label, value}) plus
@@ -170,6 +180,25 @@ def _var_to_dict(v: Any) -> dict[str, Any]:
             choices = extracted
         allow_other_choice = bool(getattr(variant, "allow_other_choice", False))
 
+    # ASSET variables may declare allowed MIME types via the proto enum
+    # ``AssetCreativeTemplateVariable.MimeType`` (JPG/PNG/GIF, ...). We
+    # preserve enum *names* — not RFC mime strings — so the YAML stays
+    # stable across SDK enum-number reshuffles and round-trips identically
+    # on apply. proto-plus collapses "field absent" and "explicit empty
+    # list" into ``[]``; we emit the field only when populated to keep
+    # the YAML quiet for the common any-type-allowed case.
+    mime_types: list[str] | None = None
+    if variant is not None and variant_name == "asset_variable":
+        raw_mt = getattr(variant, "mime_types", None) or []
+        extracted_mt: list[str] = []
+        for m in raw_mt:
+            # proto-plus exposes enums as objects with `.name`; allow
+            # raw strings too in case a future SDK surfaces them flat.
+            nm = getattr(m, "name", None)
+            extracted_mt.append(str(nm) if nm is not None else str(m))
+        if extracted_mt:
+            mime_types = extracted_mt
+
     out: dict[str, Any] = {
         "name": name,
         "type": var_type,
@@ -181,4 +210,6 @@ def _var_to_dict(v: Any) -> dict[str, Any]:
         out["choices"] = choices
     if allow_other_choice is not None:
         out["allow_other_choice"] = allow_other_choice
+    if mime_types is not None:
+        out["mime_types"] = mime_types
     return out

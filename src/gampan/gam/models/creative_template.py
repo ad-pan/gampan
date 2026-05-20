@@ -24,9 +24,14 @@ class Choice(BaseModel):
 class TemplateVariable(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
-    type: Literal["STRING", "URL", "LIST", "ASSET"]
+    type: Literal["STRING", "URL", "LIST", "ASSET", "NUMBER"]
     required: bool = False
     description: str | None = None
+    # ``default`` is the macro substitution literal. We keep it stringly-typed
+    # across variants — NUMBER variables carry an int in the proto's
+    # ``long_variable.default_value`` and we cast to str on import so the YAML
+    # is uniform with STRING/URL/LIST defaults (and the existing checksum
+    # input stays stable). ``gampan apply`` casts back where needed.
     default: str | None = None
     # LIST (and occasionally URL) variables carry a structured choice set.
     # We preserve it end-to-end so Storybook can render a real dropdown and
@@ -35,10 +40,17 @@ class TemplateVariable(BaseModel):
     # admin-authored description-only variables (e.g. Hogangnono's
     # TARGET_WINDOW) — also None.
     choices: list[Choice] | None = None
-    # GAM exposes `allowOtherChoice` only on list/url variants. STRING/ASSET
-    # leave it as None so we don't pollute the YAML with an irrelevant flag.
-    # LIST/URL variants always populate it (False by default).
+    # GAM exposes `allowOtherChoice` only on list/url variants. STRING/ASSET/
+    # NUMBER leave it as None so we don't pollute the YAML with an irrelevant
+    # flag. LIST/URL variants always populate it (False by default).
     allow_other_choice: bool | None = None
+    # ASSET variables may declare allowed MIME types (proto enum
+    # ``AssetCreativeTemplateVariable.MimeType``: JPG/PNG/GIF, ...). We keep
+    # the enum names verbatim so storybook-adpan can render a file-type
+    # constraint without remapping to RFC mime strings. Proto-plus collapses
+    # "field absent" and "explicit empty list" into ``[]``, so we treat
+    # both as "any type allowed" and emit this field only when populated.
+    mime_types: list[str] | None = None
 
 
 _TYPE_VALUES = {"STANDARD", "CUSTOM"}

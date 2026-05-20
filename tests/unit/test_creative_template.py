@@ -158,6 +158,86 @@ def test_list_variable_choices_round_trip() -> None:
     assert out["variables"][0]["allow_other_choice"] is False
 
 
+def test_number_variable_round_trip() -> None:
+    """NUMBER variables (proto ``long_variable``) carry an integer default
+    that we serialise as a string for uniformity with the other variants."""
+    raw = {
+        "name": "flash-overlay",
+        "description": "",
+        "type": "STANDARD",
+        "snippet": "<div/>",
+        "variables": [
+            {
+                "name": "Creativezindex",
+                "type": "NUMBER",
+                "required": True,
+                "default": "2147483640",
+            },
+            # NUMBER without a default (e.g. width/height fields the user must
+            # always supply) — should round-trip with no ``default`` key in
+            # the serialised payload.
+            {
+                "name": "Width",
+                "type": "NUMBER",
+                "required": True,
+            },
+        ],
+        "status": "ACTIVE",
+    }
+    t = CreativeTemplate.from_remote(raw)
+    assert t.variables[0].type == "NUMBER"
+    assert t.variables[0].default == "2147483640"
+    assert t.variables[1].type == "NUMBER"
+    assert t.variables[1].default is None
+    out = t.to_remote()
+    assert out["variables"][0]["type"] == "NUMBER"
+    assert out["variables"][0]["default"] == "2147483640"
+    assert "default" not in out["variables"][1]
+
+
+def test_asset_variable_mime_types_round_trip() -> None:
+    """ASSET variables may declare allowed MIME types — we keep the proto
+    enum names verbatim (``JPG``/``PNG``/``GIF``) so storybook-adpan can
+    drive a file-type constraint without remapping."""
+    raw = {
+        "name": "image-banner",
+        "description": "",
+        "type": "STANDARD",
+        "snippet": "<div/>",
+        "variables": [
+            {
+                "name": "Imagefile",
+                "type": "ASSET",
+                "required": True,
+                "mime_types": ["JPG", "PNG", "GIF"],
+            },
+        ],
+        "status": "ACTIVE",
+    }
+    t = CreativeTemplate.from_remote(raw)
+    assert t.variables[0].type == "ASSET"
+    assert t.variables[0].mime_types == ["JPG", "PNG", "GIF"]
+    out = t.to_remote()
+    assert out["variables"][0]["mime_types"] == ["JPG", "PNG", "GIF"]
+
+
+def test_asset_variable_without_mime_types_excluded_from_payload() -> None:
+    """ASSET variables without a ``mime_types`` constraint should not emit
+    an empty list — keeps the YAML quiet for the common any-type case."""
+    raw = {
+        "name": "image-banner-anytype",
+        "description": "",
+        "type": "STANDARD",
+        "snippet": "<div/>",
+        "variables": [{"name": "Imagefile", "type": "ASSET", "required": True}],
+        "status": "ACTIVE",
+    }
+    t = CreativeTemplate.from_remote(raw)
+    assert t.variables[0].mime_types is None
+    out = t.to_remote()
+    assert "mime_types" not in out["variables"][0]
+
+
 def test_non_list_variable_has_no_choices_field() -> None:
     """STRING/ASSET variants don't expose `choices` on the REST oneof —
     we leave `choices` as None and exclude it from the serialised payload."""

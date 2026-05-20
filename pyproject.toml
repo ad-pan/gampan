@@ -25,6 +25,7 @@ dependencies = [
     "google-auth-oauthlib>=1.2",
     "keyring>=25.0",
     "tenacity>=8.4",
+    "jsonschema>=4.22",
 ]
 
 [project.scripts]
@@ -77,4 +78,8 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["google.ads.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["jsonschema", "jsonschema.*"]
 ignore_missing_imports = true

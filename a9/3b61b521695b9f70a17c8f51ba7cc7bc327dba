@@ -1,0 +1,17 @@
+src/gampan/core/fs/loader.py
+  h_5fc43fec215ff3 11,51,63,75
+src/gampan/core/fs/schema_validation.py
+  h_5fc43fec215ff3 1-145
+tests/unit/test_fs_schema_validation.py
+  h_5fc43fec215ff3 1-182
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "a93b61b521695b9f70a17c8f51ba7cc7bc327dba",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

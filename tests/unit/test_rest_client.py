@@ -168,6 +168,117 @@ def _proto_list_variable(
     return v
 
 
+def _proto_long_variable(display_name: str, default: int | None = None) -> MagicMock:
+    """Mimic a proto-plus CreativeTemplateVariable with the long_variable oneof set."""
+    v = MagicMock()
+    v.unique_display_name = display_name
+    v.label = display_name
+    v.description = ""
+    v.required = True
+    for absent in ("string_variable", "url_variable", "list_string_variable", "asset_variable"):
+        m = MagicMock()
+        m._pb.ByteSize.return_value = 0
+        setattr(v, absent, m)
+    lv = MagicMock()
+    lv._pb.ByteSize.return_value = 1
+    # proto-plus surfaces long defaults as ints (or 0 when unset). Use 0
+    # for the "no default" case because the variant must still expose the
+    # attribute — the rest client treats 0 as a real value, not "absent".
+    lv.default_value = default if default is not None else ""
+    v.long_variable = lv
+    v._pb = None
+    return v
+
+
+def _proto_asset_variable(
+    display_name: str,
+    mime_types: list[str] | None = None,
+) -> MagicMock:
+    """Mimic a proto-plus CreativeTemplateVariable with the asset_variable oneof set."""
+    v = MagicMock()
+    v.unique_display_name = display_name
+    v.label = display_name
+    v.description = ""
+    v.required = True
+    for absent in ("string_variable", "url_variable", "list_string_variable", "long_variable"):
+        m = MagicMock()
+        m._pb.ByteSize.return_value = 0
+        setattr(v, absent, m)
+    av = MagicMock()
+    av._pb.ByteSize.return_value = 1
+    av.default_value = ""
+    proto_mts = []
+    for name in mime_types or []:
+        m = MagicMock()
+        m.name = name
+        proto_mts.append(m)
+    av.mime_types = proto_mts
+    v.asset_variable = av
+    v._pb = None
+    return v
+
+
+def test_long_variable_maps_to_number_type() -> None:
+    """LONG variables (GAM's Number type) must surface as type=NUMBER on the
+    flat model — previously they were silently degraded to STRING, losing
+    the type signal storybook-adpan needs to render a numeric input."""
+    item = MagicMock()
+    item.name = "networks/123/creativeTemplates/ct-50"
+    item.display_name = "Flash Overlay"
+    item.description = ""
+    item.snippet = "<div/>"
+    item.type_ = MagicMock()
+    item.type_.name = "CUSTOM"
+    item.status = MagicMock()
+    item.status.name = "ACTIVE"
+    item.variables = [
+        _proto_long_variable("Creativezindex", default=2147483640),
+        _proto_long_variable("Width", default=None),
+    ]
+
+    svc = MagicMock()
+    svc.list_creative_templates.return_value = iter([item])
+    c = CreativeTemplateRestClient(svc, network_path="networks/123")
+    template = c.list()[0][1]
+    zindex, width = template.variables
+    assert zindex.type == "NUMBER"
+    # Long default is an int on the proto; rest client casts to str for
+    # uniformity with the other variants.
+    assert zindex.default == "2147483640"
+    assert width.type == "NUMBER"
+    # default_value="" on the proto means absent — should not surface a default.
+    assert width.default is None
+
+
+def test_asset_variable_captures_mime_types() -> None:
+    """ASSET variables may declare allowed MIME types — we preserve the
+    proto enum names verbatim. Variables without a constraint must not
+    surface an empty list (proto-plus collapses absent and explicit-empty)."""
+    item = MagicMock()
+    item.name = "networks/123/creativeTemplates/ct-70"
+    item.display_name = "Image Banner"
+    item.description = ""
+    item.snippet = "<div/>"
+    item.type_ = MagicMock()
+    item.type_.name = "CUSTOM"
+    item.status = MagicMock()
+    item.status.name = "ACTIVE"
+    item.variables = [
+        _proto_asset_variable("Imagefile", mime_types=["JPG", "PNG", "GIF"]),
+        _proto_asset_variable("AnyAsset", mime_types=None),
+    ]
+
+    svc = MagicMock()
+    svc.list_creative_templates.return_value = iter([item])
+    c = CreativeTemplateRestClient(svc, network_path="networks/123")
+    template = c.list()[0][1]
+    constrained, unconstrained = template.variables
+    assert constrained.type == "ASSET"
+    assert constrained.mime_types == ["JPG", "PNG", "GIF"]
+    assert unconstrained.type == "ASSET"
+    assert unconstrained.mime_types is None
+
+
 def test_list_string_variable_captures_choices() -> None:
     """LIST variables carry a structured choices array — the import path must
     extract it so the on-disk YAML preserves the dropdown options."""

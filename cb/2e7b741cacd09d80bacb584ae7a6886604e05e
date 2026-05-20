@@ -1,0 +1,47 @@
+src/gampan/core/fs/loader.py
+  714fd387df907bcc 11,51,63,75
+pyproject.toml
+  714fd387df907bcc 28,82-85
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "cb2e7b741cacd09d80bacb584ae7a6886604e05e",
+  "prompts": {
+    "714fd387df907bcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "103c0d14-5580-4ef3-b178-719d137f0e4b",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "superpowers:dispatching-parallel-agents",
+          "ts": "2026-05-19T09:32:14.665Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 428,
+        "Read": 55,
+        "ToolSearch": 4,
+        "EnterWorktree": 1,
+        "TaskCreate": 23,
+        "TaskUpdate": 39,
+        "Edit": 203,
+        "Write": 51,
+        "Skill": 1,
+        "Agent": 10,
+        "WebSearch": 4,
+        "WebFetch": 5,
+        "AskUserQuestion": 1,
+        "mcp__plugin_playwright_playwright__browser_navigate": 5,
+        "mcp__plugin_playwright_playwright__browser_console_messages": 1,
+        "mcp__plugin_playwright_playwright__browser_take_screenshot": 5,
+        "mcp__plugin_playwright_playwright__browser_close": 1,
+        "mcp__plugin_playwright_playwright__browser_evaluate": 1
+      },
+      "total_additions": 758,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

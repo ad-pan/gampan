@@ -310,3 +310,37 @@ def test_list_string_variable_captures_choices() -> None:
     assert var.allow_other_choice is False
     assert var.choices is not None
     assert [(ch.label, ch.value) for ch in var.choices] == [("_blank", "_blank"), ("_top", "_top")]
+
+
+def _proto_empty_asset_variable(display_name: str) -> MagicMock:
+    """Real GAM REST returns `asset_variable: {}` for File variables without
+    mime_types. The submessage IS set in the proto (HasField=True) but its
+    ByteSize is 0. Old dispatch missed this and fell through to STRING.
+    """
+    v = MagicMock()
+    v.unique_display_name = display_name
+    v.label = display_name
+    v.description = ""
+    v.required = True
+    for absent in ("string_variable", "url_variable", "list_string_variable", "long_variable"):
+        m = MagicMock()
+        m._pb.ByteSize.return_value = 0
+        setattr(v, absent, m)
+    av = MagicMock()
+    av._pb.ByteSize.return_value = 0  # set-but-empty
+    av.default_value = ""
+    av.mime_types = []
+    v.asset_variable = av
+    # Real proto _pb with HasField surfacing only asset_variable.
+    real_pb = MagicMock()
+    real_pb.WhichOneof.return_value = None  # not modelled as oneof in this proto
+    real_pb.HasField.side_effect = lambda f: f == "asset_variable"
+    v._pb = real_pb
+    return v
+
+
+def test_empty_asset_variable_recognised_as_ASSET() -> None:
+    from gampan.gam.clients.rest import _var_to_dict
+    result = _var_to_dict(_proto_empty_asset_variable("PROFILE_IMAGE"))
+    assert result["type"] == "ASSET", f"expected ASSET, got {result['type']}"
+    assert result["name"] == "PROFILE_IMAGE"

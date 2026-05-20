@@ -134,15 +134,39 @@ def _var_to_dict(v: Any) -> dict[str, Any]:
     if pb is not None:
         try:
             variant_name = pb.WhichOneof("variable_value_type")
-        except Exception:  # pragma: no cover - safety net
+        except (ValueError, Exception):
             variant_name = None
+        # The google-ads-admanager generated proto models variant subtypes as
+        # PLAIN optional message fields, not a oneof. WhichOneof returns None
+        # even when one IS set — including the important case of an empty
+        # asset_variable (File variable with no mime_type constraints).
+        # HasField correctly reports presence for both set-empty and
+        # set-with-content submessages.
+        if variant_name is None:
+            for cand in _VARIANT_TYPE_MAP:
+                try:
+                    if pb.HasField(cand):
+                        variant_name = cand
+                        break
+                except ValueError:
+                    continue
+    # ByteSize probe fallback for test mocks that don't carry a real _pb.
+    # Real GAM responses don't take this path — _pb is always present.
     if variant_name is None:
         for cand in _VARIANT_TYPE_MAP:
             sub = getattr(v, cand, None)
-            if sub is not None and getattr(sub, "_pb", None) is not None and sub._pb.ByteSize():
-                variant_name = cand
-                variant = sub
-                break
+            if sub is None:
+                continue
+            sub_pb = getattr(sub, "_pb", None)
+            if sub_pb is None:
+                continue
+            try:
+                if sub_pb.ByteSize():
+                    variant_name = cand
+                    variant = sub
+                    break
+            except Exception:
+                continue
     if variant is None and variant_name is not None:
         variant = getattr(v, variant_name, None)
 

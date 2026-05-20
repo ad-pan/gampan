@@ -8,6 +8,7 @@ from typing import Any
 from gampan.core.errors import SchemaError
 from gampan.core.fs.config import Config
 from gampan.core.fs.refs import make_yaml
+from gampan.core.fs.schema_validation import validate_resource
 
 # Per-kind config-key mapping used by the per_kind layout. Native formats are
 # CreativeTemplates with ``native_eligible=True``, not a distinct Kind, so they
@@ -47,6 +48,7 @@ def _load_convention(repo_root: Path) -> list[dict[str, Any]]:
             data = _read_yaml(yaml_path, repo_root)
             if "kind" not in data:
                 raise SchemaError(f"{yaml_path}: missing `kind` field")
+            validate_resource(data, repo_root)
             out.append(data)
     return out
 
@@ -58,6 +60,7 @@ def _load_flat(repo_root: Path, globs: list[str]) -> list[dict[str, Any]]:
             data = _read_yaml(yaml_path, repo_root)
             if "kind" not in data:
                 raise SchemaError(f"{yaml_path}: missing `kind` field (flat layout requires it)")
+            validate_resource(data, repo_root)
             out.append(data)
     return out
 
@@ -69,6 +72,7 @@ def _load_per_kind(repo_root: Path, mapping: dict[str, list[str]]) -> list[dict[
             for yaml_path in sorted(repo_root.glob(pattern)):
                 data = _read_yaml(yaml_path, repo_root)
                 data.setdefault("kind", _snake_to_pascal(kind))
+                validate_resource(data, repo_root)
                 out.append(data)
     return out
 

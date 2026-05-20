@@ -1,4 +1,5 @@
 from gampan.gam.models.creative_template import (
+    Choice,
     CreativeTemplate,
     TemplateVariable,
 )
@@ -119,3 +120,61 @@ def test_native_video_flags_round_trip() -> None:
     t2 = CreativeTemplate.from_remote({**raw, "native_eligible": False})
     cs2 = t2.checksum()
     assert cs1 != cs2, "flipping a flag must change the checksum"
+
+
+def test_list_variable_choices_round_trip() -> None:
+    """LIST variables carry a `choices` array + `allow_other_choice` flag.
+    The structured options drive Storybook dropdowns and `gampan apply`
+    round-trips; losing them is the bug this test guards against."""
+    raw = {
+        "name": "text-ad",
+        "description": "",
+        "type": "STANDARD",
+        "snippet": "<div/>",
+        "variables": [
+            {
+                "name": "Targetwindow",
+                "type": "LIST",
+                "required": True,
+                "default": "_blank",
+                "choices": [
+                    {"label": "_blank", "value": "_blank"},
+                    {"label": "_top", "value": "_top"},
+                ],
+                "allow_other_choice": False,
+            },
+        ],
+        "status": "ACTIVE",
+    }
+    t = CreativeTemplate.from_remote(raw)
+    var = t.variables[0]
+    assert var.choices == [Choice(label="_blank", value="_blank"), Choice(label="_top", value="_top")]
+    assert var.allow_other_choice is False
+    out = t.to_remote()
+    assert out["variables"][0]["choices"] == [
+        {"label": "_blank", "value": "_blank"},
+        {"label": "_top", "value": "_top"},
+    ]
+    assert out["variables"][0]["allow_other_choice"] is False
+
+
+def test_non_list_variable_has_no_choices_field() -> None:
+    """STRING/ASSET variants don't expose `choices` on the REST oneof —
+    we leave `choices` as None and exclude it from the serialised payload."""
+    raw = {
+        "name": "plain",
+        "description": "",
+        "type": "CUSTOM",
+        "snippet": "<div/>",
+        "variables": [{"name": "headline", "type": "STRING", "required": True}],
+        "status": "ACTIVE",
+    }
+    t = CreativeTemplate.from_remote(raw)
+    assert t.variables[0].choices is None
+    assert t.variables[0].allow_other_choice is None
+    # `to_remote()` excludes None via model_dump(exclude_none=True) — so
+    # STRING variables produce a clean payload without an empty `choices`
+    # or an irrelevant `allow_other_choice` flag.
+    out = t.to_remote()
+    assert "choices" not in out["variables"][0]
+    assert "allow_other_choice" not in out["variables"][0]

@@ -111,6 +111,11 @@ _VARIANT_TYPE_MAP = {
     "long_variable": "STRING",  # no LONG in our model; degrade to STRING for v0.1
 }
 
+# Subset of variants that carry a structured `choices` array + `allow_other_choice`
+# flag. Other variants (string/asset/long) don't expose these fields on the
+# REST oneof, so we don't probe for them.
+_VARIANTS_WITH_CHOICES = {"list_string_variable", "url_variable"}
+
 
 def _var_to_dict(v: Any) -> dict[str, Any]:
     """Convert a REST CreativeTemplateVariable (proto-plus oneof) into the dict shape
@@ -146,10 +151,34 @@ def _var_to_dict(v: Any) -> dict[str, Any]:
     default_raw = getattr(variant, "default_value", None) if variant is not None else None
     default = str(default_raw) if default_raw not in (None, "") else None
 
-    return {
+    # Extract structured choices for variants that expose them. The variant
+    # subtype has a repeated `choices` field (each {label, value}) plus
+    # `allow_other_choice`. Absent or empty choices leave the flat fields
+    # at their defaults so we don't pollute YAML with empty lists.
+    choices: list[dict[str, str]] | None = None
+    allow_other_choice: bool | None = None
+    if variant is not None and variant_name in _VARIANTS_WITH_CHOICES:
+        raw_choices = getattr(variant, "choices", None) or []
+        extracted = [
+            {
+                "label": str(getattr(c, "label", "") or ""),
+                "value": str(getattr(c, "value", "") or ""),
+            }
+            for c in raw_choices
+        ]
+        if extracted:
+            choices = extracted
+        allow_other_choice = bool(getattr(variant, "allow_other_choice", False))
+
+    out: dict[str, Any] = {
         "name": name,
         "type": var_type,
         "required": bool(getattr(v, "required", False)),
         "description": str(v.description) if getattr(v, "description", None) else None,
         "default": default,
     }
+    if choices is not None:
+        out["choices"] = choices
+    if allow_other_choice is not None:
+        out["allow_other_choice"] = allow_other_choice
+    return out

@@ -134,3 +134,68 @@ def test_list_maps_oneof_variable_to_string_type() -> None:
     assert var.name == "headline"
     assert var.type == "STRING"
     assert var.default == "Hi"
+
+
+def _proto_list_variable(
+    display_name: str,
+    default: str,
+    choices: list[tuple[str, str]],
+    allow_other_choice: bool = False,
+) -> MagicMock:
+    """Mimic a proto-plus CreativeTemplateVariable with the list_string_variable oneof set."""
+    v = MagicMock()
+    v.unique_display_name = display_name
+    v.label = display_name
+    v.description = ""
+    v.required = True
+    for absent in ("string_variable", "url_variable", "asset_variable", "long_variable"):
+        m = MagicMock()
+        m._pb.ByteSize.return_value = 0
+        setattr(v, absent, m)
+    lsv = MagicMock()
+    lsv._pb.ByteSize.return_value = 1
+    lsv.default_value = default
+    lsv.allow_other_choice = allow_other_choice
+    proto_choices = []
+    for label, value in choices:
+        c = MagicMock()
+        c.label = label
+        c.value = value
+        proto_choices.append(c)
+    lsv.choices = proto_choices
+    v.list_string_variable = lsv
+    v._pb = None
+    return v
+
+
+def test_list_string_variable_captures_choices() -> None:
+    """LIST variables carry a structured choices array — the import path must
+    extract it so the on-disk YAML preserves the dropdown options."""
+    item = MagicMock()
+    item.name = "networks/123/creativeTemplates/ct-99"
+    item.display_name = "Text Ad"
+    item.description = ""
+    item.snippet = "<div/>"
+    item.type_ = MagicMock()
+    item.type_.name = "CUSTOM"
+    item.status = MagicMock()
+    item.status.name = "ACTIVE"
+    item.variables = [
+        _proto_list_variable(
+            "Targetwindow",
+            default="_blank",
+            choices=[("_blank", "_blank"), ("_top", "_top")],
+            allow_other_choice=False,
+        )
+    ]
+
+    svc = MagicMock()
+    svc.list_creative_templates.return_value = iter([item])
+    c = CreativeTemplateRestClient(svc, network_path="networks/123")
+    template = c.list()[0][1]
+    var = template.variables[0]
+    assert var.type == "LIST"
+    assert var.default == "_blank"
+    assert var.allow_other_choice is False
+    assert var.choices is not None
+    assert [(ch.label, ch.value) for ch in var.choices] == [("_blank", "_blank"), ("_top", "_top")]

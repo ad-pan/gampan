@@ -211,6 +211,12 @@ def _var_to_dict(v: Any) -> dict[str, Any]:
     # on apply. proto-plus collapses "field absent" and "explicit empty
     # list" into ``[]``; we emit the field only when populated to keep
     # the YAML quiet for the common any-type-allowed case.
+    #
+    # GAM's REST endpoint returns mime_types in a non-deterministic order
+    # (the same template can yield ['PNG','GIF','JPG'] then ['JPG','PNG','GIF']
+    # on consecutive list() calls). Without normalisation, every `gampan plan`
+    # immediately after `gampan import` shows spurious UPDATEs. Sort
+    # alphabetically so the YAML and remote views stay aligned.
     mime_types: list[str] | None = None
     if variant is not None and variant_name == "asset_variable":
         raw_mt = getattr(variant, "mime_types", None) or []
@@ -221,7 +227,7 @@ def _var_to_dict(v: Any) -> dict[str, Any]:
             nm = getattr(m, "name", None)
             extracted_mt.append(str(nm) if nm is not None else str(m))
         if extracted_mt:
-            mime_types = extracted_mt
+            mime_types = sorted(extracted_mt)
 
     out: dict[str, Any] = {
         "name": name,

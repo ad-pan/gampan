@@ -252,8 +252,11 @@ def test_long_variable_maps_to_number_type() -> None:
 
 def test_asset_variable_captures_mime_types() -> None:
     """ASSET variables may declare allowed MIME types — we preserve the
-    proto enum names verbatim. Variables without a constraint must not
-    surface an empty list (proto-plus collapses absent and explicit-empty)."""
+    proto enum names verbatim and emit them in a deterministic
+    (alphabetical) order so YAML imports stay stable across the
+    non-deterministic ordering GAM's REST endpoint returns. Variables
+    without a constraint must not surface an empty list (proto-plus
+    collapses absent and explicit-empty)."""
     item = MagicMock()
     item.name = "networks/123/creativeTemplates/ct-70"
     item.display_name = "Image Banner"
@@ -274,7 +277,7 @@ def test_asset_variable_captures_mime_types() -> None:
     template = c.list()[0][1]
     constrained, unconstrained = template.variables
     assert constrained.type == "ASSET"
-    assert constrained.mime_types == ["JPG", "PNG", "GIF"]
+    assert constrained.mime_types == ["GIF", "JPG", "PNG"]
     assert unconstrained.type == "ASSET"
     assert unconstrained.mime_types is None
 

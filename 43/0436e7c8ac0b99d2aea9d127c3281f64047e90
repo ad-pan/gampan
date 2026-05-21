@@ -1,0 +1,42 @@
+src/gampan/core/engine/diff.py
+  d4cd6bd0795a4d00 39-45,106,120-124,128,148,163,177
+src/gampan/core/engine/planner.py
+  d4cd6bd0795a4d00 32,36-39
+src/gampan/cli/plan.py
+  d4cd6bd0795a4d00 72,87,125-138,142-145,162-165
+src/gampan/cli/apply.py
+  d4cd6bd0795a4d00 37,44,66-72
+src/gampan/core/engine/executor.py
+  d4cd6bd0795a4d00 7-9,23,38-48,73-94
+tests/unit/test_engine_executor.py
+  d4cd6bd0795a4d00 52-54,63-67,71-119,142-144
+.changeset/create-rebinds-gam-id.md
+  d4cd6bd0795a4d00 1-33
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "430436e7c8ac0b99d2aea9d127c3281f64047e90",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [],
+      "tool_counts": {
+        "Bash": 102,
+        "Read": 34,
+        "AskUserQuestion": 8,
+        "ToolSearch": 1,
+        "TaskCreate": 18,
+        "TaskUpdate": 34,
+        "Write": 8,
+        "Edit": 39
+      },
+      "total_additions": 207,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

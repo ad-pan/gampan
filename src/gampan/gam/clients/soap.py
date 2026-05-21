@@ -37,8 +37,15 @@ class NativeStyleSoapClient:
         self._svc = service
 
     @retry_transient
-    def list(self) -> list[tuple[str, Resource]]:
-        result = self._svc.getNativeStylesByStatement({"query": ""})
+    def list(self, *, include_archived: bool = False) -> list[tuple[str, Resource]]:
+        # GAM's ``getNativeStylesByStatement`` returns every NativeStyle —
+        # including ARCHIVED ones — when the statement is unfiltered. Without
+        # the status filter, archived resources keep reappearing in `plan` as
+        # DESTROY candidates after every apply, since `executor.delete` only
+        # archives them (the SOAP endpoint has no hard-delete). Drop them at
+        # query time unless the caller explicitly opts in.
+        query = "" if include_archived else "WHERE status != 'ARCHIVED'"
+        result = self._svc.getNativeStylesByStatement({"query": query})
         out: list[tuple[str, Resource]] = []
         for raw in getattr(result, "results", []) or []:
             d = _to_dict(raw)

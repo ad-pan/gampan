@@ -24,7 +24,12 @@ class CreativeTemplateRestClient:
         self._parent = network_path
 
     @retry_transient
-    def list(self) -> list[tuple[str, Resource]]:
+    def list(self, *, include_archived: bool = False) -> list[tuple[str, Resource]]:
+        # The REST Beta exposes CreativeTemplate as read-only and Google's
+        # built-in templates have no meaningful "archived" lifecycle state for
+        # gampan's purposes, so the ``include_archived`` toggle is accepted
+        # for protocol parity but does not filter the result set today.
+        del include_archived  # reserved for v0.2 when CT writes via SOAP
         out: list[tuple[str, Resource]] = []
         pager = self._svc.list_creative_templates(parent=self._parent)
         for item in pager:

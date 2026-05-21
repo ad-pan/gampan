@@ -43,7 +43,14 @@ class Client(Protocol):
     not in the model.
     """
 
-    def list(self) -> list[tuple[str, Resource]]: ...
+    def list(self, *, include_archived: bool = False) -> list[tuple[str, Resource]]:
+        """Return ``(gam_id, resource)`` pairs.
+
+        ``include_archived=False`` (default) instructs the implementation to
+        skip resources whose lifecycle status is ARCHIVED. Backends that lack
+        a meaningful archive distinction may treat the flag as a no-op.
+        """
+        ...
 
     def get(self, gam_id: str) -> Resource: ...
 

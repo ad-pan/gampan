@@ -84,9 +84,18 @@ def _list_diff(a: list[Any], b: list[Any], prefix: str) -> list[FieldDiff]:
     return out
 
 
+class MissingRemoteError(ValueError):
+    """Raised when a YAML carries a real ``_gam_id`` but the remote lookup
+    returned no matching resource. Almost always means the resource was
+    filtered out by ``include_archived=False`` — flipping the flag (or
+    ``--include-archived`` on the CLI) is the standard recovery."""
+
+
 def diff_resources(
     desired: list[tuple[str, Resource]],  # (state_key, model)
     current: dict[str, tuple[str, Resource]],  # state_key → (gam_id, model)
+    *,
+    strict_missing_remote: bool = False,
 ) -> list[Change]:
     """Produce ordered Change list. Order: CREATE, UPDATE, NO_CHANGE, DELETE.
 
@@ -94,12 +103,25 @@ def diff_resources(
     ``state_key`` is ``"{kind}:{gam_id}"`` for imported resources or a
     synthetic ``"{kind}:NEW:..."`` key for user-authored ones.  This decouples
     identity from the display name so Korean / duplicate names don't collide.
+
+    ``strict_missing_remote`` guards against the ``include_archived=False``
+    foot-gun: when an imported YAML (one whose ``state_key`` carries a real
+    gam_id, not the ``NEW:`` prefix) has no matching remote, the caller almost
+    certainly filtered it out. Re-creating it would clone the resource under
+    a new gam_id, so we raise instead and ask the caller to opt back in.
     """
     changes: list[Change] = []
     desired_keys = {key for key, _ in desired}
 
     for key, r in desired:
         if key not in current:
+            if strict_missing_remote and ":NEW:" not in key:
+                raise MissingRemoteError(
+                    f"{key}: tracked in YAML but absent from the remote lookup. "
+                    "ARCHIVED resources are filtered by default — rerun with "
+                    "`--include-archived` (or set `include_archived: true` in "
+                    ".gampan/config.yml) if this resource is intentionally archived."
+                )
             changes.append(
                 Change(
                     action=Action.CREATE,

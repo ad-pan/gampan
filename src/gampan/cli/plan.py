@@ -12,6 +12,7 @@ import typer
 from ruamel.yaml import YAML
 
 from gampan.cli._render import render_plan, render_summary
+from gampan.core.engine.diff import MissingRemoteError
 from gampan.core.engine.planner import build_plan
 from gampan.core.fs.config import Config
 from gampan.core.fs.loader import load_all, validate_no_duplicates
@@ -50,19 +51,43 @@ def run(
         "--show-unchanged",
         help="Print NO_CHANGE rows too.",
     ),
+    include_archived: bool | None = typer.Option(
+        None,
+        "--include-archived/--no-include-archived",
+        help=(
+            "Include ARCHIVED remote resources in the diff. Overrides "
+            "config.include_archived for this run; falls back to the config "
+            "value when omitted."
+        ),
+    ),
 ) -> None:
     """Show pending changes between local YAML and the remote GAM state."""
     root = Path.cwd()
     cfg = _load_config(root)
     clients = build_clients(cfg.network_code)
+    effective_include_archived = (
+        cfg.include_archived if include_archived is None else include_archived
+    )
 
     desired = _load_desired(root, cfg)
     # Only query kinds we actually manage (kinds present in desired YAMLs OR
     # in state.json from a prior import). Skipping unmanaged kinds avoids
     # unnecessary SOAP/REST traffic and keeps `gampan plan` cassette-friendly.
     managed_kinds = _managed_kinds(root, desired)
-    current = _load_current(clients, kinds=managed_kinds)
-    plan = build_plan(desired=desired, current=current)
+    current = _load_current(
+        clients,
+        kinds=managed_kinds,
+        include_archived=effective_include_archived,
+    )
+    try:
+        plan = build_plan(
+            desired=desired,
+            current=current,
+            strict_missing_remote=not effective_include_archived,
+        )
+    except MissingRemoteError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1) from e
 
     if as_json:
         typer.echo(
@@ -132,6 +157,8 @@ def _load_desired(root: Path, cfg: Config) -> list[tuple[str, Resource]]:
 def _load_current(
     clients: Mapping[str, Client],
     kinds: set[str] | None = None,
+    *,
+    include_archived: bool = False,
 ) -> dict[str, tuple[str, Any]]:
     """Fetch remote resources for the given kinds.
 
@@ -143,7 +170,7 @@ def _load_current(
     for kind in target:
         if kind not in clients:
             continue
-        for gam_id, r in clients[kind].list():
+        for gam_id, r in clients[kind].list(include_archived=include_archived):
             current[f"{kind}:{gam_id}"] = (gam_id, r)
     return current
 

@@ -48,3 +48,27 @@ def test_create_returns_new_gam_id() -> None:
     c = NativeStyleSoapClient(service)
     new_id = c.create(_ns("a"))
     assert new_id == "999"
+
+
+def test_list_filters_archived_by_default() -> None:
+    """``include_archived=False`` adds the SOAP PQL filter so ARCHIVED rows
+    never reach gampan — that's the only thing keeping them out of plan."""
+    service = MagicMock()
+    service.getNativeStylesByStatement.return_value = MagicMock(
+        results=[], totalResultSetSize=0
+    )
+    NativeStyleSoapClient(service).list()
+    statement = service.getNativeStylesByStatement.call_args.args[0]
+    assert statement == {"query": "WHERE status != 'ARCHIVED'"}
+
+
+def test_list_includes_archived_when_requested() -> None:
+    """``include_archived=True`` drops the filter so callers managing
+    archived YAML (or auditing) can see every NativeStyle."""
+    service = MagicMock()
+    service.getNativeStylesByStatement.return_value = MagicMock(
+        results=[], totalResultSetSize=0
+    )
+    NativeStyleSoapClient(service).list(include_archived=True)
+    statement = service.getNativeStylesByStatement.call_args.args[0]
+    assert statement == {"query": ""}

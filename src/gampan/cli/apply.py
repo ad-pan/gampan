@@ -8,6 +8,7 @@ import typer
 
 from gampan import __version__
 from gampan.cli.plan import _load_config, _load_current, _load_desired, build_clients
+from gampan.core.engine.diff import MissingRemoteError
 from gampan.core.engine.executor import execute_plan
 from gampan.core.engine.planner import build_plan
 from gampan.core.state.store import StateStore
@@ -15,15 +16,35 @@ from gampan.core.state.store import StateStore
 
 def run(
     auto_approve: bool = typer.Option(False, "--auto-approve"),
+    include_archived: bool | None = typer.Option(
+        None,
+        "--include-archived/--no-include-archived",
+        help=(
+            "Include ARCHIVED remote resources in the diff. Overrides "
+            "config.include_archived for this run; falls back to the config "
+            "value when omitted."
+        ),
+    ),
 ) -> None:
     """Apply pending changes to Google Ad Manager."""
     root = Path.cwd()
     cfg = _load_config(root)
     clients = build_clients(cfg.network_code)
+    effective_include_archived = (
+        cfg.include_archived if include_archived is None else include_archived
+    )
 
     desired = _load_desired(root, cfg)
-    current = _load_current(clients)
-    plan = build_plan(desired=desired, current=current)
+    current = _load_current(clients, include_archived=effective_include_archived)
+    try:
+        plan = build_plan(
+            desired=desired,
+            current=current,
+            strict_missing_remote=not effective_include_archived,
+        )
+    except MissingRemoteError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1) from e
 
     from gampan.cli._render import render_plan
 

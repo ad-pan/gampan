@@ -1,5 +1,7 @@
 # tests/unit/test_engine_diff.py
-from gampan.core.engine.diff import Action, FieldDiff, diff_resources
+import pytest
+
+from gampan.core.engine.diff import Action, FieldDiff, MissingRemoteError, diff_resources
 from gampan.gam.models.creative_template import CreativeTemplate, TemplateVariable
 from gampan.gam.models.native_style import NativeStyle, Size, Targeting
 
@@ -123,3 +125,40 @@ def test_update_list_length_diff() -> None:
     assert changes[0].action == Action.UPDATE
     added = [d for d in changes[0].diffs if d.before is None]
     assert len(added) > 0
+
+
+def test_strict_missing_remote_raises_for_tracked_yaml() -> None:
+    """Imported YAML (key has a real gam_id) without a remote match must
+    raise instead of CREATE — otherwise we'd clone the resource."""
+    with pytest.raises(MissingRemoteError) as exc:
+        diff_resources(
+            desired=[("NativeStyle:943475", _ns("배너 광고 스타일"))],
+            current={},
+            strict_missing_remote=True,
+        )
+    assert "include_archived" in str(exc.value)
+    assert "NativeStyle:943475" in str(exc.value)
+
+
+def test_strict_missing_remote_still_allows_new_create() -> None:
+    """User-authored YAML carries a synthetic ``NEW:`` key — the guard must
+    let it through so brand-new resources can still be created."""
+    changes = diff_resources(
+        desired=[("NativeStyle:NEW:gampan-smoke-deadbeef", _ns("smoke"))],
+        current={},
+        strict_missing_remote=True,
+    )
+    assert len(changes) == 1
+    assert changes[0].action == Action.CREATE
+
+
+def test_strict_missing_remote_off_keeps_old_behaviour() -> None:
+    """When the guard is disabled (caller passed --include-archived), tracked
+    YAMLs with no remote fall back to CREATE just like the pre-guard code."""
+    changes = diff_resources(
+        desired=[("NativeStyle:943475", _ns("배너 광고 스타일"))],
+        current={},
+        strict_missing_remote=False,
+    )
+    assert len(changes) == 1
+    assert changes[0].action == Action.CREATE

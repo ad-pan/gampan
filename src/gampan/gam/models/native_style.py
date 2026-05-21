@@ -42,12 +42,20 @@ class NativeStyle(BaseModel):
         size_raw = data["size"] or {}
         # GAM may serialise `targeting` itself as None for unrestricted styles.
         targeting_raw = data.get("targeting") or {}
+        # `isFluid` is a *top-level* field on the SOAP NativeStyle (the WSDL's
+        # ``Size`` complex type only carries width/height/isAspectRatio). Read
+        # it from the root, falling back to a nested location for backwards
+        # compatibility with payloads emitted by gampan <= 0.1.0 that
+        # mistakenly nested it under ``size``.
+        is_fluid = data.get("isFluid")
+        if is_fluid is None:
+            is_fluid = size_raw.get("isFluid")
         return cls(
             name=data["name"],
             size=Size(
                 width=int(size_raw["width"]),
                 height=int(size_raw["height"]),
-                is_fluid=bool(size_raw.get("isFluid") or False),
+                is_fluid=bool(is_fluid or False),
             ),
             template_id=int(data["creativeTemplateId"]),
             html=data.get("htmlSnippet") or "",
@@ -62,22 +70,33 @@ class NativeStyle(BaseModel):
         )
 
     def to_remote(self) -> dict[str, Any]:
-        return {
+        # `isFluid` lives at the NativeStyle root in the SOAP WSDL — putting
+        # it inside ``size`` (whose XSD doesn't declare the field) makes
+        # googleads' SOAP packer raise KeyError('isFluid') during create/update.
+        payload: dict[str, Any] = {
             "name": self.name,
             "size": {
                 "width": self.size.width,
                 "height": self.size.height,
-                "isFluid": self.size.is_fluid,
             },
+            "isFluid": self.size.is_fluid,
             "creativeTemplateId": self.template_id,
             "htmlSnippet": self.html,
             "cssSnippet": self.css,
-            "targeting": {
-                "adUnits": list(self.targeting.ad_units),
-                "customTargeting": dict(self.targeting.custom),
-            },
             "status": self.status,
         }
+        # SOAP ``Targeting`` is a deep nested type (inventoryTargeting/
+        # customTargeting/geoTargeting/...) — the flat {adUnits, customTargeting}
+        # shape we keep in the model and YAML is intentionally a v0.1
+        # placeholder that only encodes "no targeting". For the empty case
+        # we omit the field entirely so SOAP create/update succeeds; the
+        # full mapping is tracked for v0.2.
+        if self.targeting.ad_units or self.targeting.custom:
+            payload["targeting"] = {
+                "adUnits": list(self.targeting.ad_units),
+                "customTargeting": dict(self.targeting.custom),
+            }
+        return payload
 
     def checksum(self) -> str:
         canonical = json.dumps(self.to_remote(), sort_keys=True, ensure_ascii=False)

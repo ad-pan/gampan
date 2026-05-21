@@ -194,14 +194,19 @@ def _to_user_yaml(
         user["size"] = {
             "width": payload["size"]["width"],
             "height": payload["size"]["height"],
-            "is_fluid": payload["size"]["isFluid"],
+            "is_fluid": payload["isFluid"],
         }
         user["template_id"] = payload["creativeTemplateId"]
         user["html"] = _ref_or_inline("htmlSnippet", payload, side_files)
         user["css"] = _ref_or_inline("cssSnippet", payload, side_files)
+        # `to_remote()` omits the targeting block entirely when both ad_units
+        # and custom are empty (the SOAP type is a deep nested record and an
+        # empty placeholder would fail at create/update time). Recreate the
+        # empty flat shape here so the YAML stays consistent across imports.
+        targeting_payload = payload.get("targeting") or {}
         user["targeting"] = {
-            "ad_units": payload["targeting"]["adUnits"],
-            "custom": payload["targeting"]["customTargeting"],
+            "ad_units": targeting_payload.get("adUnits", []),
+            "custom": targeting_payload.get("customTargeting", {}),
         }
         user["status"] = payload["status"]
     elif kind == "CreativeTemplate":

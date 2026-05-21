@@ -36,6 +36,13 @@ class Change(BaseModel):
     diffs: list[FieldDiff] = []
     # Kept for backward compatibility — mirrors diffs as "<path> changed" strings.
     diff_summary: list[str] = []
+    # Repo-relative source path for the YAML that produced this change, when
+    # the change originates from a desired-side YAML (CREATE / UPDATE /
+    # NO_CHANGE). DELETE rows never carry a path — the YAML is gone. The
+    # executor uses this on CREATE to stamp ``_gam_id`` back into the file
+    # so the next ``plan`` recognises the newly-imported resource by id
+    # instead of treating it as another fresh CREATE candidate.
+    yaml_path: str | None = None
 
 
 def _field_diff(
@@ -96,6 +103,7 @@ def diff_resources(
     current: dict[str, tuple[str, Resource]],  # state_key → (gam_id, model)
     *,
     strict_missing_remote: bool = False,
+    desired_yaml_paths: dict[str, str] | None = None,
 ) -> list[Change]:
     """Produce ordered Change list. Order: CREATE, UPDATE, NO_CHANGE, DELETE.
 
@@ -109,9 +117,15 @@ def diff_resources(
     gam_id, not the ``NEW:`` prefix) has no matching remote, the caller almost
     certainly filtered it out. Re-creating it would clone the resource under
     a new gam_id, so we raise instead and ask the caller to opt back in.
+
+    ``desired_yaml_paths`` maps each desired ``state_key`` to its
+    repo-relative source path; the executor needs this on CREATE to stamp
+    ``_gam_id`` back into the YAML so the resource is recognised by id on
+    the next ``plan``.
     """
     changes: list[Change] = []
     desired_keys = {key for key, _ in desired}
+    paths = desired_yaml_paths or {}
 
     for key, r in desired:
         if key not in current:
@@ -131,6 +145,7 @@ def diff_resources(
                     current=None,
                     diffs=[],
                     diff_summary=[],
+                    yaml_path=paths.get(key),
                 )
             )
         else:
@@ -145,6 +160,7 @@ def diff_resources(
                         current=cur,
                         diffs=[],
                         diff_summary=[],
+                        yaml_path=paths.get(key),
                     )
                 )
             else:
@@ -158,6 +174,7 @@ def diff_resources(
                         current=cur,
                         diffs=field_diffs,
                         diff_summary=[f"  {d.path} changed" for d in field_diffs],
+                        yaml_path=paths.get(key),
                     )
                 )
 

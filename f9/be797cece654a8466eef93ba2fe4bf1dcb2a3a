@@ -1,0 +1,58 @@
+src/gampan/gam/clients/rest.py
+  d4cd6bd0795a4d00 27-32,214-224,230,235
+tests/unit/test_rest_client.py
+  d4cd6bd0795a4d00 255-259,280
+src/gampan/gam/models/native_style.py
+  d4cd6bd0795a4d00 45-52,58,73-76,82
+src/gampan/core/fs/writer.py
+  d4cd6bd0795a4d00 197,202-206,208-209
+src/gampan/core/fs/config.py
+  d4cd6bd0795a4d00 17
+src/gampan/cli/init.py
+  d4cd6bd0795a4d00 28-37
+src/gampan/core/protocols.py
+  d4cd6bd0795a4d00 46-53
+src/gampan/gam/clients/soap.py
+  d4cd6bd0795a4d00 40-48
+src/gampan/cli/plan.py
+  d4cd6bd0795a4d00 15,53-62,67-70,76-90,135-136,148,155-157,160-161
+src/gampan/cli/apply.py
+  d4cd6bd0795a4d00 11,18-27,32-35,37-47
+src/gampan/cli/import_cmd.py
+  d4cd6bd0795a4d00 21-28,38-42,56
+src/gampan/core/engine/diff.py
+  d4cd6bd0795a4d00 87-93,97-98,106-111,118-124
+src/gampan/core/engine/planner.py
+  d4cd6bd0795a4d00 30-31
+tests/unit/test_engine_diff.py
+  d4cd6bd0795a4d00 2-4
+tests/unit/test_soap_client.py
+  d4cd6bd0795a4d00 51
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "f9be797cece654a8466eef93ba2fe4bf1dcb2a3a",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [],
+      "tool_counts": {
+        "Bash": 88,
+        "Read": 31,
+        "AskUserQuestion": 8,
+        "ToolSearch": 1,
+        "TaskCreate": 18,
+        "TaskUpdate": 32,
+        "Write": 7,
+        "Edit": 28
+      },
+      "total_additions": 403,
+      "total_deletions": 0,
+      "overriden_lines": 86
+    }
+  }
+}

@@ -34,13 +34,14 @@ def run(
         cfg.include_archived if include_archived is None else include_archived
     )
 
-    desired = _load_desired(root, cfg)
+    desired, desired_yaml_paths = _load_desired(root, cfg)
     current = _load_current(clients, include_archived=effective_include_archived)
     try:
         plan = build_plan(
             desired=desired,
             current=current,
             strict_missing_remote=not effective_include_archived,
+            desired_yaml_paths=desired_yaml_paths,
         )
     except MissingRemoteError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -62,7 +63,13 @@ def run(
 
     store = StateStore(root / ".gampan" / "state.json")
     try:
-        execute_plan(plan, clients, store, tool_version=f"gampan/{__version__}")
+        execute_plan(
+            plan,
+            clients,
+            store,
+            tool_version=f"gampan/{__version__}",
+            root=root,
+        )
         typer.echo("\nDone.")
     except Exception as e:
         typer.echo(f"\nFailed: {e}", err=True)

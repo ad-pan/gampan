@@ -29,9 +29,13 @@ def build_plan(
     current: dict[str, tuple[str, Resource]],  # state_key → (gam_id, model)
     *,
     strict_missing_remote: bool = False,
+    desired_yaml_paths: dict[str, str] | None = None,
 ) -> Plan:
     return Plan(
         changes=diff_resources(
-            desired, current, strict_missing_remote=strict_missing_remote
+            desired,
+            current,
+            strict_missing_remote=strict_missing_remote,
+            desired_yaml_paths=desired_yaml_paths,
         )
     )

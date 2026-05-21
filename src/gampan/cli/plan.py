@@ -69,7 +69,7 @@ def run(
         cfg.include_archived if include_archived is None else include_archived
     )
 
-    desired = _load_desired(root, cfg)
+    desired, desired_yaml_paths = _load_desired(root, cfg)
     # Only query kinds we actually manage (kinds present in desired YAMLs OR
     # in state.json from a prior import). Skipping unmanaged kinds avoids
     # unnecessary SOAP/REST traffic and keeps `gampan plan` cassette-friendly.
@@ -84,6 +84,7 @@ def run(
             desired=desired,
             current=current,
             strict_missing_remote=not effective_include_archived,
+            desired_yaml_paths=desired_yaml_paths,
         )
     except MissingRemoteError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -122,18 +123,26 @@ def _load_config(root: Path) -> Config:
     return Config.model_validate(yaml.load((root / ".gampan" / "config.yml").read_text()))
 
 
-def _load_desired(root: Path, cfg: Config) -> list[tuple[str, Resource]]:
-    """Load YAML resources and return (state_key, model) pairs.
+def _load_desired(
+    root: Path, cfg: Config
+) -> tuple[list[tuple[str, Resource]], dict[str, str]]:
+    """Load YAML resources and return ``(desired, yaml_paths)``.
 
-    State key is ``{kind}:{gam_id}`` for imported YAMLs (those carrying a
-    ``_gam_id`` field), or ``{kind}:NEW:{slug}-{hash8}`` for user-authored
-    YAMLs that have never been imported.  The ``NEW:`` prefix ensures they
-    always appear as CREATE in the plan.
+    ``desired`` is a list of ``(state_key, model)`` pairs; ``yaml_paths``
+    maps each state key to the repo-relative source file. State key is
+    ``{kind}:{gam_id}`` for imported YAMLs (those carrying a ``_gam_id``
+    field), or ``{kind}:NEW:{slug}-{hash8}`` for user-authored YAMLs that
+    have never been imported. The ``NEW:`` prefix ensures they always
+    appear as CREATE in the plan; the executor uses ``yaml_paths`` on
+    CREATE to stamp the newly-assigned ``_gam_id`` back into the source
+    file.
     """
     raw = load_all(root, cfg)
     validate_no_duplicates(raw)
     out: list[tuple[str, Resource]] = []
+    paths: dict[str, str] = {}
     for item in raw:
+        source = item.get("__source__")
         item = {k: v for k, v in item.items() if not k.startswith("__")}
         kind = item.pop("kind")
         gam_id: str | None = item.pop("_gam_id", None)
@@ -151,7 +160,9 @@ def _load_desired(root: Path, cfg: Config) -> list[tuple[str, Resource]]:
             name_hash = hashlib.sha256(model.name.encode()).hexdigest()[:8]
             key = f"{kind}:NEW:{name_slug}-{name_hash}"
         out.append((key, model))
-    return out
+        if source:
+            paths[key] = source
+    return out, paths
 
 
 def _load_current(

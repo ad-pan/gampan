@@ -18,6 +18,14 @@ def run(
     resource: str = typer.Option(
         "all", "--resource", "-r", help="native-styles | creative-templates | all"
     ),
+    include_archived: bool | None = typer.Option(
+        None,
+        "--include-archived/--no-include-archived",
+        help=(
+            "Include ARCHIVED remote resources. Overrides config.include_archived "
+            "for this run; falls back to the config value when omitted."
+        ),
+    ),
 ) -> None:
     """Pull GAM resources into YAML + populate state.json."""
     root = Path.cwd()
@@ -27,6 +35,11 @@ def run(
         raise typer.Exit(code=1)
     yaml = YAML(typ="safe")
     cfg = dict(yaml.load(cfg_path.read_text()))
+    effective_include_archived = (
+        bool(cfg.get("include_archived", False))
+        if include_archived is None
+        else include_archived
+    )
 
     clients = build_clients(cfg["network_code"])
 
@@ -40,7 +53,7 @@ def run(
     disambiguated: list[tuple[str, str]] = []  # (original_slug, final_stem)
 
     for kind in kinds:
-        for gam_id, r in clients[kind].list():
+        for gam_id, r in clients[kind].list(include_archived=effective_include_archived):
             from gampan.core.fs.writer import slugify as _slugify
 
             slug_before = _slugify(r.name)

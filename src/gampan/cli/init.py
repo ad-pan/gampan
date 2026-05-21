@@ -25,7 +25,16 @@ def run(
     yaml = YAML()
     with cfg_file.open("w") as f:
         yaml.dump(
-            {"network_code": network_code, "env": env, "default_dry_run": False},
+            {
+                "network_code": network_code,
+                "env": env,
+                "default_dry_run": False,
+                # ARCHIVED resources are filtered out of `import` / `plan` by
+                # default — flip to `true` (or pass `--include-archived` on the
+                # command line) when a NativeStyle YAML needs to carry
+                # ``status: ARCHIVED``.
+                "include_archived": False,
+            },
             f,
         )
 

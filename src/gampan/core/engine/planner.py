@@ -27,5 +27,11 @@ class Plan(BaseModel):
 def build_plan(
     desired: list[tuple[str, Resource]],  # (state_key, model)
     current: dict[str, tuple[str, Resource]],  # state_key → (gam_id, model)
+    *,
+    strict_missing_remote: bool = False,
 ) -> Plan:
-    return Plan(changes=diff_resources(desired, current))
+    return Plan(
+        changes=diff_resources(
+            desired, current, strict_missing_remote=strict_missing_remote
+        )
+    )

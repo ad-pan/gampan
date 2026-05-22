@@ -1,0 +1,45 @@
+docs/specs/2026-04-28-gampan-design.md
+  d4cd6bd0795a4d00 233,386,391,419
+docs/plans/2026-04-28-gampan-v1.md
+  d4cd6bd0795a4d00 62
+src/gampan/gam/models/creative_template.py
+  d4cd6bd0795a4d00 40-41
+tests/unit/test_fs_writer_slugify.py
+  d4cd6bd0795a4d00 18,49-52
+.changeset/native-style-targeting-opaque.md
+  d4cd6bd0795a4d00 13-14
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "00a17b247298b11c91dda81ef4bd0c30445c12df",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 198,
+        "Read": 63,
+        "AskUserQuestion": 9,
+        "ToolSearch": 1,
+        "TaskCreate": 40,
+        "TaskUpdate": 73,
+        "Write": 25,
+        "Edit": 84,
+        "Skill": 1,
+        "Agent": 3
+      },
+      "total_additions": 19,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

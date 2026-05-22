@@ -1,0 +1,41 @@
+SECURITY.md
+  285536f587eee1b0 1-58
+.github/dependabot.yml
+  285536f587eee1b0 1-65
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "dba7d37c672194c51ef45e39cd22319ca43e1457",
+  "prompts": {
+    "285536f587eee1b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34e77f93-d3df-4cc8-9df3-d0f297a556a6",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 275,
+        "Read": 70,
+        "AskUserQuestion": 9,
+        "ToolSearch": 3,
+        "TaskCreate": 45,
+        "TaskUpdate": 88,
+        "Write": 27,
+        "Edit": 102,
+        "Skill": 1,
+        "Agent": 3,
+        "Monitor": 1,
+        "WebFetch": 1
+      },
+      "total_additions": 123,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

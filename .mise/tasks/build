@@ -2,6 +2,16 @@
 #MISE description="Compile gampan to a single-file binary"
 set -euo pipefail
 
+# Nuitka's ``--macos-target-arch`` accepts only ``arm64`` / ``x86_64``;
+# producing a true universal2 binary requires two separate Nuitka runs
+# fused with ``lipo``. ``NUITKA_MACOS_ARCH`` lets CI flip between the
+# two arches without editing this task. When unset, build native to
+# whatever the runner / dev machine actually is.
+EXTRA_ARGS=()
+if [[ "$(uname)" == "Darwin" && -n "${NUITKA_MACOS_ARCH:-}" ]]; then
+  EXTRA_ARGS+=(--macos-target-arch="${NUITKA_MACOS_ARCH}")
+fi
+
 uv run python -m nuitka \
   --standalone --onefile \
   --onefile-cache-mode=cached \
@@ -19,5 +29,6 @@ uv run python -m nuitka \
   --nofollow-import-to=nuitka \
   --nofollow-import-to=vcr \
   --nofollow-import-to=respx \
+  ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
   "$@" \
   src/gampan/__main__.py

@@ -1,0 +1,32 @@
+src/gampan/cli/import_cmd.py
+  d4cd6bd0795a4d00 16-20,60-67,77-80,96-150
+tests/unit/test_cli_import.py
+  d4cd6bd0795a4d00 99-164
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "e9992d4d2b56e852fa1e2ef31bba92f3bf17987e",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [],
+      "tool_counts": {
+        "Bash": 163,
+        "Read": 45,
+        "AskUserQuestion": 8,
+        "ToolSearch": 1,
+        "TaskCreate": 33,
+        "TaskUpdate": 57,
+        "Write": 18,
+        "Edit": 59
+      },
+      "total_additions": 166,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

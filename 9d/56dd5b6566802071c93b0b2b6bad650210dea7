@@ -1,0 +1,39 @@
+src/gampan/gam/clients/rest.py
+  d4cd6bd0795a4d00 142-146
+src/gampan/core/fs/schema_validation.py
+  d4cd6bd0795a4d00 135-142
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "9d56dd5b6566802071c93b0b2b6bad650210dea7",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 212,
+        "Read": 65,
+        "AskUserQuestion": 9,
+        "ToolSearch": 1,
+        "TaskCreate": 40,
+        "TaskUpdate": 77,
+        "Write": 25,
+        "Edit": 87,
+        "Skill": 1,
+        "Agent": 3
+      },
+      "total_additions": 13,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

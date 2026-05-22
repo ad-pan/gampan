@@ -1,7 +1,12 @@
+[settings]
+# Refuse to install a tool whose URL/checksum isn't already pinned in mise.lock.
+locked = true
+
 [tools]
 python = "3.12"
 uv = "latest"
-"npm:@changesets/cli" = "latest"
+# binstall avoids the Rust toolchain; reproducibility is anchored by mise.lock.
+"cargo:knope" = { version = "latest", binstall = true }
 
 [tasks.deps]
 run = "uv sync --extra dev"

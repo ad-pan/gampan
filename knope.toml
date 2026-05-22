@@ -1,0 +1,38 @@
+[package]
+versioned_files = ["pyproject.toml"]
+changelog = "CHANGELOG.md"
+
+[github]
+owner = "ad-pan"
+repo = "gampan"
+
+# https://github.com/apps/knope-bot — PR doc check + Release-PR preview.
+[bot.checks]
+enabled = true
+
+[bot.releases]
+enabled = true
+
+[[workflows]]
+name = "document-change"
+[[workflows.steps]]
+type = "CreateChangeFile"
+
+[[workflows]]
+name = "prepare-release"
+[[workflows.steps]]
+type = "PrepareRelease"
+
+[[workflows]]
+name = "release"
+[[workflows.steps]]
+type = "PrepareRelease"
+[[workflows.steps]]
+type = "Command"
+# Explicit staging: avoid sweeping unrelated tracked edits into the release commit.
+command = "git add pyproject.toml CHANGELOG.md .changeset && git commit -m \"chore: prepare release $version\""
+[[workflows.steps]]
+type = "Command"
+command = "git push origin HEAD"
+[[workflows.steps]]
+type = "Release"

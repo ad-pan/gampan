@@ -1,0 +1,36 @@
+src/gampan/core/engine/diff.py
+  d4cd6bd0795a4d00 101-123
+src/gampan/cli/apply.py
+  d4cd6bd0795a4d00 11,28-38,50-82
+tests/unit/test_engine_diff.py
+  d4cd6bd0795a4d00 4-10,169-208
+.changeset/apply-drift-precheck.md
+  d4cd6bd0795a4d00 1-26
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "56fb91cfa2d6559a75b579fdd053ff220a8f5689",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [],
+      "tool_counts": {
+        "Bash": 143,
+        "Read": 40,
+        "AskUserQuestion": 8,
+        "ToolSearch": 1,
+        "TaskCreate": 28,
+        "TaskUpdate": 53,
+        "Write": 15,
+        "Edit": 48
+      },
+      "total_additions": 194,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

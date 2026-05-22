@@ -7,7 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from gampan.cli.main import app
-from gampan.gam.models.native_style import NativeStyle, Size, Targeting
+from gampan.gam.models.native_style import NativeStyle, Size
 
 
 def _ns(name: str = "card") -> NativeStyle:
@@ -17,7 +17,6 @@ def _ns(name: str = "card") -> NativeStyle:
         template_id=1,
         html="<div/>",
         css="",
-        targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
 

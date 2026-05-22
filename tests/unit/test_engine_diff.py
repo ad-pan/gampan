@@ -3,7 +3,7 @@ import pytest
 
 from gampan.core.engine.diff import Action, FieldDiff, MissingRemoteError, diff_resources
 from gampan.gam.models.creative_template import CreativeTemplate, TemplateVariable
-from gampan.gam.models.native_style import NativeStyle, Size, Targeting
+from gampan.gam.models.native_style import NativeStyle, Size
 
 
 def _ns(name: str, html: str = "<div/>") -> NativeStyle:
@@ -13,7 +13,6 @@ def _ns(name: str, html: str = "<div/>") -> NativeStyle:
         template_id=1,
         html=html,
         css="",
-        targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
 
@@ -84,7 +83,6 @@ def test_update_nested_field_diff() -> None:
         template_id=1,
         html="<div/>",
         css="",
-        targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
     changes = diff_resources(

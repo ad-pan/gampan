@@ -8,7 +8,7 @@ from rich.console import Console
 from gampan.cli._render import render_plan, render_summary
 from gampan.core.engine.diff import Action, Change, FieldDiff
 from gampan.core.engine.planner import Plan
-from gampan.gam.models.native_style import NativeStyle, Size, Targeting
+from gampan.gam.models.native_style import NativeStyle, Size
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,6 @@ def _ns(name: str, html: str = "<div/>") -> NativeStyle:
         template_id=1,
         html=html,
         css="",
-        targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
 

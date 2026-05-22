@@ -96,6 +96,72 @@ def test_import_unrepresentable_name_falls_back_to_gam_id(
     assert (tmp_path / "native-styles" / "777.native-style.yaml").exists()
 
 
+def test_import_removes_orphan_yaml_after_remote_rename(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When a remote resource is renamed (same ``_gam_id``, new slug)
+    ``import`` writes the YAML under the new slug *and* deletes the
+    stale old-slug YAML + its ``.html`` / ``.css`` side files so the
+    next plan does not trip ``validate_no_duplicates``."""
+    monkeypatch.chdir(tmp_path)
+    _init_repo(tmp_path)
+
+    # Seed: imitate a prior import that wrote ``old-name`` files for gam_id 555.
+    ns_dir = tmp_path / "native-styles"
+    (ns_dir / "old-name.native-style.yaml").write_text(
+        "kind: NativeStyle\n_gam_id: '555'\nname: old-name\n", encoding="utf-8"
+    )
+    (ns_dir / "old-name.native-style.html").write_text("<div/>", encoding="utf-8")
+    (ns_dir / "old-name.native-style.css").write_text(".x{}", encoding="utf-8")
+
+    fake_client = MagicMock()
+    fake_client.list.return_value = [("555", _ns(name="new-name"))]
+    with patch(
+        "gampan.cli.import_cmd.build_clients",
+        return_value={"NativeStyle": fake_client},
+    ):
+        runner = CliRunner()
+        result = runner.invoke(app, ["import", "--resource", "native-styles"])
+    assert result.exit_code == 0, result.output
+    assert (ns_dir / "new-name.native-style.yaml").exists()
+    # Orphan YAML + side files cleaned up
+    assert not (ns_dir / "old-name.native-style.yaml").exists()
+    assert not (ns_dir / "old-name.native-style.html").exists()
+    assert not (ns_dir / "old-name.native-style.css").exists()
+    # Audit line surfaces the removal so the operator notices
+    assert "Removed orphan YAML" in result.output
+
+
+def test_import_leaves_user_authored_yaml_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """User-authored YAML (no ``_gam_id`` field yet) must never be deleted
+    by ``import`` — only previously-imported files participate in
+    rename-orphan cleanup."""
+    monkeypatch.chdir(tmp_path)
+    _init_repo(tmp_path)
+
+    ns_dir = tmp_path / "native-styles"
+    # Author a brand-new local YAML — no _gam_id yet.
+    (ns_dir / "draft.native-style.yaml").write_text(
+        "kind: NativeStyle\nname: draft-only\n", encoding="utf-8"
+    )
+
+    fake_client = MagicMock()
+    fake_client.list.return_value = [("888", _ns(name="other"))]
+    with patch(
+        "gampan.cli.import_cmd.build_clients",
+        return_value={"NativeStyle": fake_client},
+    ):
+        runner = CliRunner()
+        result = runner.invoke(app, ["import", "--resource", "native-styles"])
+    assert result.exit_code == 0, result.output
+    # Imported file landed
+    assert (ns_dir / "other.native-style.yaml").exists()
+    # Local draft survived
+    assert (ns_dir / "draft.native-style.yaml").exists()
+
+
 def test_import_duplicate_slug_appends_gam_id(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

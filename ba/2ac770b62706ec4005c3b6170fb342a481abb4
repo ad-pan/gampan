@@ -1,0 +1,13 @@
+.github/workflows/codeql.yml
+  h_5fc43fec215ff3 1-41
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "ba2ac770b62706ec4005c3b6170fb342a481abb4",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

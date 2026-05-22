@@ -1,0 +1,39 @@
+SECURITY.md
+  285536f587eee1b0 56-59
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "9721c9603d88d3b8454a4e96d78f493577942bb0",
+  "prompts": {
+    "285536f587eee1b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34e77f93-d3df-4cc8-9df3-d0f297a556a6",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 326,
+        "Read": 78,
+        "AskUserQuestion": 9,
+        "ToolSearch": 3,
+        "TaskCreate": 47,
+        "TaskUpdate": 92,
+        "Write": 35,
+        "Edit": 128,
+        "Skill": 1,
+        "Agent": 3,
+        "Monitor": 1,
+        "WebFetch": 8
+      },
+      "total_additions": 4,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

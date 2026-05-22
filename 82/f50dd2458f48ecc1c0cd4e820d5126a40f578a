@@ -1,0 +1,34 @@
+src/gampan/core/engine/executor.py
+  d4cd6bd0795a4d00 55-65
+tests/unit/test_engine_executor.py
+  d4cd6bd0795a4d00 119-179
+.changeset/skip-archive-rpc-when-already-archived.md
+  d4cd6bd0795a4d00 1-11
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "82f50dd2458f48ecc1c0cd4e820d5126a40f578a",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [],
+      "tool_counts": {
+        "Bash": 177,
+        "Read": 49,
+        "AskUserQuestion": 8,
+        "ToolSearch": 1,
+        "TaskCreate": 33,
+        "TaskUpdate": 61,
+        "Write": 20,
+        "Edit": 69
+      },
+      "total_additions": 83,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

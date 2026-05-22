@@ -1,0 +1,39 @@
+package.json
+  285536f587eee1b0 2
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "ba7427a9d6f9087b546133c9c57fcf99176d5cf0",
+  "prompts": {
+    "285536f587eee1b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34e77f93-d3df-4cc8-9df3-d0f297a556a6",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 282,
+        "Read": 71,
+        "AskUserQuestion": 9,
+        "ToolSearch": 3,
+        "TaskCreate": 45,
+        "TaskUpdate": 88,
+        "Write": 29,
+        "Edit": 107,
+        "Skill": 1,
+        "Agent": 3,
+        "Monitor": 1,
+        "WebFetch": 1
+      },
+      "total_additions": 1,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

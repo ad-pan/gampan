@@ -1,0 +1,41 @@
+knope.toml
+  285536f587eee1b0 57-62,65-68
+mise.toml
+  285536f587eee1b0 9-12
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "54f7e3044bb7891142c2c53e24f10cee258fd942",
+  "prompts": {
+    "285536f587eee1b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34e77f93-d3df-4cc8-9df3-d0f297a556a6",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 298,
+        "Read": 74,
+        "AskUserQuestion": 9,
+        "ToolSearch": 3,
+        "TaskCreate": 46,
+        "TaskUpdate": 90,
+        "Write": 31,
+        "Edit": 119,
+        "Skill": 1,
+        "Agent": 3,
+        "Monitor": 1,
+        "WebFetch": 8
+      },
+      "total_additions": 14,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

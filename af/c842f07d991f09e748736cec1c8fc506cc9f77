@@ -1,0 +1,38 @@
+src/gampan/core/engine/diff.py
+  d4cd6bd0795a4d00 101-136
+src/gampan/cli/plan.py
+  d4cd6bd0795a4d00 15-19,96-104
+src/gampan/cli/apply.py
+  d4cd6bd0795a4d00 11-16,106-113
+tests/unit/test_engine_diff.py
+  d4cd6bd0795a4d00 6-7,12,229-273
+.changeset/creative-template-plan-time-guard.md
+  d4cd6bd0795a4d00 1-22
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "afc842f07d991f09e748736cec1c8fc506cc9f77",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [],
+      "tool_counts": {
+        "Bash": 175,
+        "Read": 48,
+        "AskUserQuestion": 8,
+        "ToolSearch": 1,
+        "TaskCreate": 33,
+        "TaskUpdate": 59,
+        "Write": 19,
+        "Edit": 67
+      },
+      "total_additions": 148,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

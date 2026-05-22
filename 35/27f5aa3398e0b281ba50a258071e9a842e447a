@@ -1,0 +1,36 @@
+src/gampan/gam/models/native_style.py
+  d4cd6bd0795a4d00 9-23,45-52,55-78,90,101,121-124
+src/gampan/core/fs/writer.py
+  d4cd6bd0795a4d00 202-206
+tests/unit/test_native_style.py
+  d4cd6bd0795a4d00 2-8,18,23-24,28-30,34-35,39-47,55-56,77-108
+.changeset/native-style-targeting-opaque.md
+  d4cd6bd0795a4d00 1-44
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "3527f5aa3398e0b281ba50a258071e9a842e447a",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [],
+      "tool_counts": {
+        "Bash": 130,
+        "Read": 39,
+        "AskUserQuestion": 8,
+        "ToolSearch": 1,
+        "TaskCreate": 27,
+        "TaskUpdate": 51,
+        "Write": 14,
+        "Edit": 42
+      },
+      "total_additions": 160,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

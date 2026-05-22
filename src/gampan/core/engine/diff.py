@@ -98,6 +98,43 @@ class MissingRemoteError(ValueError):
     ``--include-archived`` on the CLI) is the standard recovery."""
 
 
+def detect_remote_drift(
+    state_entries: dict[str, "tuple[str, bool]"],
+    current: dict[str, tuple[str, Resource]],
+) -> list[str]:
+    """Return state keys that look drifted relative to the last
+    acknowledged remote view.
+
+    ``state_entries`` maps each ``state_key`` to
+    ``(checksum_remote, drift_acknowledged)``. Two cases count as drift:
+
+    * the live remote checksum no longer matches the recorded
+      ``checksum_remote`` — the remote moved since the last import/apply,
+      and no ``refresh`` has caught up yet; or
+    * the checksums match, but ``drift_acknowledged`` is ``False`` — a
+      previous ``refresh`` recorded the new remote value without an
+      operator decision, so ``apply`` must still pause.
+
+    Keys absent from ``state_entries`` (newly observed resources) and
+    rows whose ``checksum_remote`` was never populated are skipped:
+    drift can only be detected against a known prior state.
+    """
+    drifted: list[str] = []
+    for key, (_gam_id, model) in current.items():
+        entry = state_entries.get(key)
+        if entry is None:
+            continue
+        recorded_checksum, acknowledged = entry
+        if not recorded_checksum:
+            continue
+        if model.checksum() != recorded_checksum:
+            drifted.append(key)
+            continue
+        if not acknowledged:
+            drifted.append(key)
+    return drifted
+
+
 def diff_resources(
     desired: list[tuple[str, Resource]],  # (state_key, model)
     current: dict[str, tuple[str, Resource]],  # state_key → (gam_id, model)

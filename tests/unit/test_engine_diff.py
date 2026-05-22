@@ -1,7 +1,13 @@
 # tests/unit/test_engine_diff.py
 import pytest
 
-from gampan.core.engine.diff import Action, FieldDiff, MissingRemoteError, diff_resources
+from gampan.core.engine.diff import (
+    Action,
+    FieldDiff,
+    MissingRemoteError,
+    detect_remote_drift,
+    diff_resources,
+)
 from gampan.gam.models.creative_template import CreativeTemplate, TemplateVariable
 from gampan.gam.models.native_style import NativeStyle, Size
 
@@ -160,3 +166,69 @@ def test_strict_missing_remote_off_keeps_old_behaviour() -> None:
     )
     assert len(changes) == 1
     assert changes[0].action == Action.CREATE
+
+
+def test_detect_remote_drift_returns_keys_with_diverged_checksum() -> None:
+    """Resources whose live checksum no longer matches the value recorded
+    in state.json count as drifted — apply must surface that before
+    overwriting the change."""
+    same = _ns("same")
+    changed_remote = _ns("changed", html="<remote/>")
+    drifted = detect_remote_drift(
+        state_entries={
+            "NativeStyle:1": (same.checksum(), True),
+            "NativeStyle:2": (_ns("changed", html="<local/>").checksum(), True),
+        },
+        current={
+            "NativeStyle:1": ("1", same),
+            "NativeStyle:2": ("2", changed_remote),
+        },
+    )
+    assert drifted == ["NativeStyle:2"]
+
+
+def test_detect_remote_drift_skips_unknown_keys() -> None:
+    """A live resource that state has never seen (e.g. created out-of-band
+    since the last import) is not drift — it's brand-new and surfaces as a
+    normal DELETE/UPDATE candidate via diff_resources."""
+    drifted = detect_remote_drift(
+        state_entries={},
+        current={"NativeStyle:99": ("99", _ns("brand-new"))},
+    )
+    assert drifted == []
+
+
+def test_detect_remote_drift_skips_empty_recorded_checksum() -> None:
+    """state.json rows that were never populated (empty ``checksum_remote``)
+    cannot be drift-compared — skip them rather than false-positive."""
+    drifted = detect_remote_drift(
+        state_entries={"NativeStyle:1": ("", True)},
+        current={"NativeStyle:1": ("1", _ns("a"))},
+    )
+    assert drifted == []
+
+
+def test_detect_remote_drift_flags_unacknowledged_refresh() -> None:
+    """Once ``refresh`` records the post-drift checksum, the checksum
+    comparison alone would say "no drift" and ``apply`` would silently
+    overwrite the change. ``drift_acknowledged=False`` keeps the abort
+    path engaged until an operator deliberately resolves it."""
+    a = _ns("a")
+    drifted = detect_remote_drift(
+        state_entries={
+            "NativeStyle:1": (a.checksum(), False),  # refresh wrote new ck but operator did not ack
+        },
+        current={"NativeStyle:1": ("1", a)},
+    )
+    assert drifted == ["NativeStyle:1"]
+
+
+def test_detect_remote_drift_treats_acknowledged_match_as_clean() -> None:
+    """Matching checksum + ``drift_acknowledged=True`` is the steady-state —
+    apply must not abort in this case."""
+    a = _ns("a")
+    drifted = detect_remote_drift(
+        state_entries={"NativeStyle:1": (a.checksum(), True)},
+        current={"NativeStyle:1": ("1", a)},
+    )
+    assert drifted == []

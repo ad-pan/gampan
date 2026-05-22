@@ -1,0 +1,38 @@
+.github/workflows/release.yml
+  d4cd6bd0795a4d00 11-17,19-26,31-35,37,40-41
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "2eee7e89055f51eae459126039a3139a9359118e",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 261,
+        "Read": 70,
+        "AskUserQuestion": 9,
+        "ToolSearch": 2,
+        "TaskCreate": 43,
+        "TaskUpdate": 84,
+        "Write": 25,
+        "Edit": 100,
+        "Skill": 1,
+        "Agent": 3,
+        "Monitor": 1
+      },
+      "total_additions": 23,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

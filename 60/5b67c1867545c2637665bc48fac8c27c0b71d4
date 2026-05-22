@@ -1,0 +1,37 @@
+.github/workflows/ci.yml
+  d4cd6bd0795a4d00 17
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "605b67c1867545c2637665bc48fac8c27c0b71d4",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 231,
+        "Read": 67,
+        "AskUserQuestion": 9,
+        "ToolSearch": 1,
+        "TaskCreate": 40,
+        "TaskUpdate": 77,
+        "Write": 25,
+        "Edit": 91,
+        "Skill": 1,
+        "Agent": 3
+      },
+      "total_additions": 1,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

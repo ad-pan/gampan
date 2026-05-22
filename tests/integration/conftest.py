@@ -105,6 +105,30 @@ vcr_default = vcrlib.VCR(
 )
 
 
+@pytest.fixture(autouse=True)
+def _stub_credentials_for_playback(monkeypatch: pytest.MonkeyPatch) -> None:
+    # CI runners have no ADC / keychain / service-account file, so
+    # resolve_credentials() raises AuthError before VCR can intercept
+    # any HTTP. Swap in a dummy refresh-token Credentials during playback;
+    # the cassette already covers the token endpoint + API calls.
+    if _RECORD_MODE != "none":
+        return
+    from gampan.gam import auth as gam_auth
+
+    dummy = gam_auth.Credentials(
+        principal="ci@stub.local",
+        _token_provider=lambda: _REDACTED,
+        _strategy="keychain",
+        _extra={
+            "refresh_token": _REDACTED,
+            "client_id": _REDACTED,
+            "client_secret": _REDACTED,
+        },
+    )
+    monkeypatch.setattr("gampan.cli.plan.resolve_credentials", lambda *a, **k: dummy)
+    monkeypatch.setattr("gampan.gam.auth.resolve_credentials", lambda *a, **k: dummy)
+
+
 @pytest.fixture
 def cassette(request: pytest.FixtureRequest) -> None:  # type: ignore[return]
     """Activate the VCR cassette named after the test function.

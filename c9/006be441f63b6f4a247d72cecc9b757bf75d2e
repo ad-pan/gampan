@@ -1,0 +1,31 @@
+.github/workflows/ci.yml
+  h_5fc43fec215ff3 17,22-27
+src/gampan/cli/import_cmd.py
+  h_5fc43fec215ff3 48,102
+src/gampan/cli/plan.py
+  h_5fc43fec215ff3 140
+src/gampan/core/engine/diff.py
+  h_5fc43fec215ff3 119,134-136,152
+src/gampan/core/engine/executor.py
+  h_5fc43fec215ff3 75
+tests/unit/test_creative_template.py
+  h_5fc43fec215ff3 151-154
+tests/unit/test_fs_schema_validation.py
+  h_5fc43fec215ff3 158
+tests/unit/test_native_style.py
+  h_5fc43fec215ff3 18-22
+tests/unit/test_rest_client.py
+  h_5fc43fec215ff3 347
+tests/unit/test_soap_client.py
+  h_5fc43fec215ff3 56,66
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "c9006be441f63b6f4a247d72cecc9b757bf75d2e",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

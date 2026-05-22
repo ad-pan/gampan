@@ -155,9 +155,7 @@ def test_validate_resource_skips_unknown_kind(
 
     # No schema file for UnknownKind — must not raise (Pydantic handles it
     # downstream, or the kind is genuinely unsupported).
-    validate_resource(
-        {"kind": "UnknownKind", "anything": True}, tmp_path
-    )
+    validate_resource({"kind": "UnknownKind", "anything": True}, tmp_path)
 
 
 def test_validate_resource_ignores_source_field(

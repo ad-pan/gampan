@@ -344,6 +344,7 @@ def _proto_empty_asset_variable(display_name: str) -> MagicMock:
 
 def test_empty_asset_variable_recognised_as_ASSET() -> None:
     from gampan.gam.clients.rest import _var_to_dict
+
     result = _var_to_dict(_proto_empty_asset_variable("PROFILE_IMAGE"))
     assert result["type"] == "ASSET", f"expected ASSET, got {result['type']}"
     assert result["name"] == "PROFILE_IMAGE"

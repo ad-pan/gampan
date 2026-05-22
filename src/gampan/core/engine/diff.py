@@ -116,7 +116,7 @@ class CreativeTemplateReadOnlyError(GampanError):
     state."""
 
 
-def validate_v0_1_constraints(changes: list["Change"]) -> None:
+def validate_v0_1_constraints(changes: list[Change]) -> None:
     """Block changes the v0.1 backends cannot honour.
 
     Today: CreativeTemplate is read-only via REST, so any non-NO_CHANGE
@@ -131,9 +131,9 @@ def validate_v0_1_constraints(changes: list["Change"]) -> None:
     from gampan.gam.models.creative_template import CreativeTemplate
 
     offending = [
-        c for c in changes
-        if c.key.partition(":")[0] == CreativeTemplate.kind
-        and c.action != Action.NO_CHANGE
+        c
+        for c in changes
+        if c.key.partition(":")[0] == CreativeTemplate.kind and c.action != Action.NO_CHANGE
     ]
     if not offending:
         return
@@ -149,7 +149,7 @@ def validate_v0_1_constraints(changes: list["Change"]) -> None:
 
 
 def detect_remote_drift(
-    state_entries: dict[str, "tuple[str, bool]"],
+    state_entries: dict[str, tuple[str, bool]],
     current: dict[str, tuple[str, Resource]],
 ) -> list[str]:
     """Return state keys that look drifted relative to the last

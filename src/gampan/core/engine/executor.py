@@ -72,9 +72,7 @@ def execute_plan(
                 # the RPC when the remote is already ARCHIVED so apply does
                 # not flood the API with idempotent no-ops while flushing
                 # leftover rows from state.json.
-                already_archived = (
-                    getattr(change.current, "status", None) == "ARCHIVED"
-                )
+                already_archived = getattr(change.current, "status", None) == "ARCHIVED"
                 if not already_archived:
                     client.delete(change.gam_id)
                 state.resources.pop(change.key, None)

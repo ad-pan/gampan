@@ -45,10 +45,7 @@ def run(
     try:
         cfg = _load_config(root)
     except FileNotFoundError as e:
-        typer.echo(
-            "Not a gampan repo (missing .gampan/config.yml). "
-            "Run `gampan init` first."
-        )
+        typer.echo("Not a gampan repo (missing .gampan/config.yml). Run `gampan init` first.")
         raise typer.Exit(code=1) from e
 
     effective_include_archived = (
@@ -102,9 +99,7 @@ def run(
             typer.echo(f"  - {p.relative_to(root)}")
 
 
-def _collect_existing_yaml_by_gam_id(
-    root: Path, kinds: list[str]
-) -> dict[str, Path]:
+def _collect_existing_yaml_by_gam_id(root: Path, kinds: list[str]) -> dict[str, Path]:
     """Return ``{_gam_id: yaml_path}`` for previously-imported YAMLs.
 
     Only scans directories that map to *kinds* (a NativeStyle-only run

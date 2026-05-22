@@ -8,40 +8,37 @@ jobs:
   release:
     runs-on: ${{ matrix.os }}
     strategy:
+      # Three parallel runners ship the three per-arch binaries Homebrew
+      # picks from. macos-14 (Apple Silicon) appears twice — once for
+      # native arm64, once cross-compiling x86_64 via Nuitka's
+      # ``--macos-target-arch`` — so neither macOS slice waits on the
+      # other and ``macos-13`` (deprecated, slow free-tier queue) is
+      # gone for good.
+      fail-fast: false
       matrix:
-        # macos-14 (Apple Silicon) is the only macOS runner we need now: it
-        # builds the arm64 binary natively and cross-builds x86_64 via
-        # Nuitka's ``--macos-target-arch=x86_64``. Homebrew picks the
-        # right artifact per-host via ``on_arm`` / ``on_intel``, so we
-        # don't need a separate Intel runner *or* a fat binary.
-        os: [ubuntu-latest, macos-14]
+        include:
+          - os: ubuntu-latest
+            artifact: gampan-linux-x86_64
+          - os: macos-14
+            artifact: gampan-darwin-arm64
+          - os: macos-14
+            artifact: gampan-darwin-x86_64
+            macos_arch: x86_64
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
       - run: mise run deps
-
-      # Native build (Linux x86_64, or macOS arm64 on the Apple Silicon runner).
-      - run: mise run release-build
-      - name: Rename to platform-tagged filename
-        run: |
-          if [[ "${{ runner.os }}" == "macOS" ]]; then
-            mv dist/gampan dist/gampan-darwin-arm64
-          else
-            mv dist/gampan dist/gampan-linux-x86_64
-          fi
-
-      # macOS only: cross-build x86_64 so Intel Macs get a native artifact too.
-      - if: runner.os == 'macOS'
-        env:
-          NUITKA_MACOS_ARCH: x86_64
+      - env:
+          # Unset by default → ``mise run build`` skips the
+          # ``--macos-target-arch`` flag (native build). The x86_64
+          # macOS row sets it explicitly to cross-compile.
+          NUITKA_MACOS_ARCH: ${{ matrix.macos_arch }}
         run: mise run release-build
-      - if: runner.os == 'macOS'
-        run: mv dist/gampan dist/gampan-darwin-x86_64
-
+      - run: mv dist/gampan dist/${{ matrix.artifact }}
       - uses: actions/upload-artifact@v4
         with:
-          name: gampan-${{ matrix.os }}
-          path: dist/gampan-*
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
 
   changesets:
     runs-on: ubuntu-latest

@@ -1,0 +1,21 @@
+.changeset/adopt-knope.md
+  h_5fc43fec215ff3 1-14
+.github/workflows/release.yml
+  h_5fc43fec215ff3 11-12,14,19-31,33-35,38-39,41,44-46,52-59,62-81
+knope.toml
+  h_5fc43fec215ff3 1-38
+mise.lock
+  h_5fc43fec215ff3 1-83
+mise.toml
+  h_5fc43fec215ff3 1-4,8-9
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "656efea4abb54603c6efd45bd8c8278c568ba27b",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

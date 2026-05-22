@@ -10,8 +10,8 @@ mismatch had two consequences:
 
 - **Import was lossy.** Every imported NativeStyle landed in YAML with
   `ad_units: []` / `custom: {}` regardless of what the remote actually
-  carried. Hogangnono's 15 production NativeStyles all hid real
-  `inventoryTargeting.targetedAdUnits` payloads.
+  carried; a production network's NativeStyles all hid real
+  `inventoryTargeting.targetedAdUnits` payloads behind that placeholder.
 - **Apply was silently destructive.** `to_remote()` re-emitted the same
   flat shape, which `googleads`' SOAP packer dropped during
   `updateNativeStyles` (the WSDL has no `adUnits` field). The remote

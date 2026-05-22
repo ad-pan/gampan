@@ -139,7 +139,11 @@ def _var_to_dict(v: Any) -> dict[str, Any]:
     if pb is not None:
         try:
             variant_name = pb.WhichOneof("variable_value_type")
-        except (ValueError, Exception):
+        except ValueError:
+            # Some proto-plus generated bindings raise ValueError when the
+            # field is not a oneof at all (e.g. when google-ads-admanager
+            # models the variants as plain optional message fields). The
+            # ``HasField`` fallback below handles that case explicitly.
             variant_name = None
         # The google-ads-admanager generated proto models variant subtypes as
         # PLAIN optional message fields, not a oneof. WhichOneof returns None

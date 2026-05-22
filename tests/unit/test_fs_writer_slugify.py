@@ -15,7 +15,7 @@ def test_underscores_and_dashes_preserved() -> None:
 
 def test_hangul_passes_through() -> None:
     # Korean letters are Unicode category Lo (letter-other); kept verbatim.
-    assert slugify("호갱노노 네이티브 거실") == "호갱노노-네이티브-거실"
+    assert slugify("한국어 네이티브 광고") == "한국어-네이티브-광고"
 
 
 def test_kanji_and_kana_passes_through() -> None:
@@ -46,10 +46,10 @@ def test_all_punctuation_yields_empty() -> None:
 
 
 def test_korean_only_yields_korean_slug_not_empty() -> None:
-    # This is the prod regression: Hogangnono native styles with Korean-only
-    # names were previously slugifying to "" because [^a-z0-9_-] stripped them.
-    assert slugify("호갱노노") == "호갱노노"
-    assert slugify("호갱노노") != ""
+    # Regression: NativeStyles whose name was Korean-only previously
+    # slugified to "" because [^a-z0-9_-] stripped them.
+    assert slugify("한국어광고") == "한국어광고"
+    assert slugify("한국어광고") != ""
 
 
 def test_nfc_normalisation() -> None:

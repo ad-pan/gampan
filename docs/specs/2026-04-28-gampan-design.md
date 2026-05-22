@@ -230,7 +230,7 @@ template_id: 12345                  # FK to CreativeTemplate (raw gam_id in v1)
 html: !file ./article-card.html     # custom YAML tag → side-file content
 css:  !file ./article-card.css
 targeting:
-  ad_units: [hogangnono/article]
+  ad_units: [network/article]
   custom: {}
 status: ACTIVE
 ```
@@ -383,12 +383,12 @@ gampan 0.1.0
 
 Auth
   Method:           service_account
-  Principal:        gampan-bot@zigbang-prod.iam.gserviceaccount.com
+  Principal:        gampan-bot@<your-project>.iam.gserviceaccount.com
   Source:           GOOGLE_APPLICATION_CREDENTIALS=/etc/secrets/sa.json
 
 Network
   Network code:     21700000000
-  Display name:     Hogangnono Ad Manager
+  Display name:     Your Ad Manager Network
   Connected:        ✓ ok
 
 Config
@@ -416,7 +416,7 @@ Browser-based OAuth 2.0 PKCE flow, mirroring `gh auth login` / `firebase login` 
 $ gampan auth login
 Opening browser to https://accounts.google.com/o/oauth2/v2/auth?...
 Waiting for authentication... ✓
-Logged in as sejun@zigbang.com
+Logged in as user@example.com
 Token stored in macOS Keychain.
 ```
 

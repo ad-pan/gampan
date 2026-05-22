@@ -2,7 +2,7 @@
 from unittest.mock import MagicMock
 
 from gampan.gam.clients.soap import NativeStyleSoapClient
-from gampan.gam.models.native_style import NativeStyle, Size, Targeting
+from gampan.gam.models.native_style import NativeStyle, Size
 
 
 def _ns(name: str) -> NativeStyle:
@@ -12,7 +12,6 @@ def _ns(name: str) -> NativeStyle:
         template_id=1,
         html="<div/>",
         css="",
-        targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
 

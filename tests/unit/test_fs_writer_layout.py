@@ -12,7 +12,7 @@ from pathlib import Path
 
 from gampan.core.fs.writer import write_resource
 from gampan.gam.models.creative_template import CreativeTemplate
-from gampan.gam.models.native_style import NativeStyle, Size, Targeting
+from gampan.gam.models.native_style import NativeStyle, Size
 
 
 def _ns(name: str = "card") -> NativeStyle:
@@ -22,7 +22,6 @@ def _ns(name: str = "card") -> NativeStyle:
         template_id=1,
         html="<div/>",
         css="",
-        targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
 
@@ -89,7 +88,6 @@ def test_long_snippet_promoted_to_side_file_with_matching_suffix(tmp_path: Path)
         template_id=1,
         html=long_html,
         css="",
-        targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
     yaml_path, _ = write_resource(tmp_path, ns, gam_id="1")

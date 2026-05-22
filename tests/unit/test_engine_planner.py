@@ -1,6 +1,6 @@
 from gampan.core.engine.diff import Action
 from gampan.core.engine.planner import build_plan
-from gampan.gam.models.native_style import NativeStyle, Size, Targeting
+from gampan.gam.models.native_style import NativeStyle, Size
 
 
 def _ns(name: str) -> NativeStyle:
@@ -10,7 +10,6 @@ def _ns(name: str) -> NativeStyle:
         template_id=1,
         html="<div/>",
         css="",
-        targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
 

@@ -8,7 +8,7 @@ from gampan.core.engine.planner import build_plan
 from gampan.core.errors import GamApiError
 from gampan.core.state.schema import State
 from gampan.core.state.store import StateStore
-from gampan.gam.models.native_style import NativeStyle, Size, Targeting
+from gampan.gam.models.native_style import NativeStyle, Size
 
 
 def _ns(name: str, html: str = "<div/>") -> NativeStyle:
@@ -18,7 +18,6 @@ def _ns(name: str, html: str = "<div/>") -> NativeStyle:
         template_id=1,
         html=html,
         css="",
-        targeting=Targeting(ad_units=[], custom={}),
         status="ACTIVE",
     )
 

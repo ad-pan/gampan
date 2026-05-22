@@ -6,7 +6,21 @@ import hashlib
 import json
 from typing import Any, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, model_validator
+
+from gampan.core.errors import GampanError
+
+
+class LegacyTargetingError(GampanError):
+    """Raised when a YAML carries gampan<=0.1.x's lossy
+    ``targeting: {ad_units, custom}`` shape with non-empty content.
+
+    The old shape silently dropped GAM's nested ``Targeting`` complex type
+    (inventoryTargeting/customTargeting/geoTargeting/...) on import. Letting
+    a populated legacy YAML round-trip through ``to_remote`` would replace
+    the real remote targeting with an empty payload on the next apply.
+    Refuse the load and ask the caller to re-import.
+    """
 
 
 class Size(BaseModel):
@@ -14,12 +28,6 @@ class Size(BaseModel):
     width: int
     height: int
     is_fluid: bool = False
-
-
-class Targeting(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    ad_units: list[str] = Field(default_factory=list)
-    custom: dict[str, list[str]] = Field(default_factory=dict)
 
 
 class NativeStyle(BaseModel):
@@ -34,14 +42,43 @@ class NativeStyle(BaseModel):
     template_id: int
     html: str
     css: str
-    targeting: Targeting
+    # SOAP ``Targeting`` is a deep nested complex type
+    # (inventoryTargeting/customTargeting/geoTargeting/...). v0.1 keeps the
+    # entire payload verbatim so import → apply round-trips losslessly
+    # without us re-implementing GAM's matchers; a friendlier user-facing
+    # schema is tracked for v0.2. ``None`` means "no targeting object" —
+    # rare in practice because GAM almost always returns the wrapper even
+    # when every sub-field is empty.
+    targeting: dict[str, Any] | None = None
     status: Literal["ACTIVE", "INACTIVE", "ARCHIVED"]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_targeting(cls, data: Any) -> Any:
+        # YAMLs written by gampan<=0.1.x carried ``targeting: {ad_units,
+        # custom}``. Empty payloads (the only thing the old code could
+        # produce) are silently rewritten to ``None`` because nothing was
+        # ever encoded; any non-empty legacy payload would have been a lie
+        # already, so refuse rather than apply a destructive empty
+        # targeting to the remote.
+        if not isinstance(data, dict):
+            return data
+        t = data.get("targeting")
+        if isinstance(t, dict) and ("ad_units" in t or "custom" in t):
+            has_payload = bool(t.get("ad_units")) or bool(t.get("custom"))
+            if has_payload:
+                raise LegacyTargetingError(
+                    "YAML carries gampan<=0.1.x targeting shape "
+                    "({ad_units, custom}) with content. That shape was "
+                    "a lossy placeholder; re-run `gampan import` to refresh "
+                    "the targeting from SOAP before applying."
+                )
+            data["targeting"] = None
+        return data
 
     @classmethod
     def from_remote(cls, data: dict[str, Any]) -> NativeStyle:
         size_raw = data["size"] or {}
-        # GAM may serialise `targeting` itself as None for unrestricted styles.
-        targeting_raw = data.get("targeting") or {}
         # `isFluid` is a *top-level* field on the SOAP NativeStyle (the WSDL's
         # ``Size`` complex type only carries width/height/isAspectRatio). Read
         # it from the root, falling back to a nested location for backwards
@@ -50,6 +87,7 @@ class NativeStyle(BaseModel):
         is_fluid = data.get("isFluid")
         if is_fluid is None:
             is_fluid = size_raw.get("isFluid")
+        targeting_raw = data.get("targeting")
         return cls(
             name=data["name"],
             size=Size(
@@ -60,12 +98,7 @@ class NativeStyle(BaseModel):
             template_id=int(data["creativeTemplateId"]),
             html=data.get("htmlSnippet") or "",
             css=data.get("cssSnippet") or "",
-            targeting=Targeting(
-                # GAM SOAP returns explicit `None` for empty repeated/map fields
-                # rather than omitting them — coerce to safe empty values.
-                ad_units=list(targeting_raw.get("adUnits") or []),
-                custom=dict(targeting_raw.get("customTargeting") or {}),
-            ),
+            targeting=targeting_raw if isinstance(targeting_raw, dict) else None,
             status=data.get("status") or "ACTIVE",
         )
 
@@ -85,17 +118,10 @@ class NativeStyle(BaseModel):
             "cssSnippet": self.css,
             "status": self.status,
         }
-        # SOAP ``Targeting`` is a deep nested type (inventoryTargeting/
-        # customTargeting/geoTargeting/...) — the flat {adUnits, customTargeting}
-        # shape we keep in the model and YAML is intentionally a v0.1
-        # placeholder that only encodes "no targeting". For the empty case
-        # we omit the field entirely so SOAP create/update succeeds; the
-        # full mapping is tracked for v0.2.
-        if self.targeting.ad_units or self.targeting.custom:
-            payload["targeting"] = {
-                "adUnits": list(self.targeting.ad_units),
-                "customTargeting": dict(self.targeting.custom),
-            }
+        if self.targeting is not None:
+            # Round-trip the SOAP `Targeting` payload verbatim so apply does
+            # not overwrite remote targeting we never decoded into the model.
+            payload["targeting"] = self.targeting
         return payload
 
     def checksum(self) -> str:

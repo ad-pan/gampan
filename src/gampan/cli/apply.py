@@ -8,7 +8,12 @@ import typer
 
 from gampan import __version__
 from gampan.cli.plan import _load_config, _load_current, _load_desired, build_clients
-from gampan.core.engine.diff import MissingRemoteError, detect_remote_drift
+from gampan.core.engine.diff import (
+    CreativeTemplateReadOnlyError,
+    MissingRemoteError,
+    detect_remote_drift,
+    validate_v0_1_constraints,
+)
 from gampan.core.engine.executor import execute_plan
 from gampan.core.engine.planner import build_plan
 from gampan.core.state.store import StateStore
@@ -97,6 +102,14 @@ def run(
     from gampan.cli._render import render_plan
 
     render_plan(plan, show_unchanged=False)
+
+    # v0.1 backend constraint: CreativeTemplate is read-only via REST.
+    # Refuse before executor so a half-applied state cannot happen.
+    try:
+        validate_v0_1_constraints(plan.changes)
+    except CreativeTemplateReadOnlyError as e:
+        typer.echo(f"\nError: {e}", err=True)
+        raise typer.Exit(code=1) from e
 
     if not plan.has_pending:
         typer.echo("No changes.")

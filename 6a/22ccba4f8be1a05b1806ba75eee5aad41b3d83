@@ -1,0 +1,51 @@
+src/gampan/core/engine/executor.py
+  d4cd6bd0795a4d00 14,17-23,31-42,45,56-59,71-74,84,86-91,101-104,111,115,122
+src/gampan/core/engine/diff.py
+  d4cd6bd0795a4d00 10,13-19,102,109,128-132,135-136,172-175,177,180-181,183-184,220
+src/gampan/cli/plan.py
+  d4cd6bd0795a4d00 16,175
+src/gampan/cli/apply.py
+  d4cd6bd0795a4d00 10-17,26,62-71,73-74,76,119-123,133,139,141-146,153-158,166
+src/gampan/core/fs/loader.py
+  d4cd6bd0795a4d00 23-26,31-33
+src/gampan/cli/import_cmd.py
+  d4cd6bd0795a4d00 11-14,17-28,45-59,61-62,64-75,78-79,100,103-127,129-130,145,147-154
+src/gampan/cli/refresh.py
+  d4cd6bd0795a4d00 9,13-23,26-29,36,38,46-53,55-58,60-61
+.changeset/post-review-polish.md
+  d4cd6bd0795a4d00 1-52
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "6a22ccba4f8be1a05b1806ba75eee5aad41b3d83",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 188,
+        "Read": 57,
+        "AskUserQuestion": 9,
+        "ToolSearch": 1,
+        "TaskCreate": 37,
+        "TaskUpdate": 71,
+        "Write": 25,
+        "Edit": 77,
+        "Skill": 1,
+        "Agent": 3
+      },
+      "total_additions": 418,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

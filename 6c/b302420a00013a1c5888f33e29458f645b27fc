@@ -1,0 +1,38 @@
+src/gampan/core/state/schema.py
+  d4cd6bd0795a4d00 19-28
+src/gampan/cli/refresh.py
+  d4cd6bd0795a4d00 35-41,51-55
+src/gampan/core/engine/diff.py
+  d4cd6bd0795a4d00 102,105-120,124-125,127-133
+src/gampan/cli/apply.py
+  d4cd6bd0795a4d00 61-64,103-107,124-129,134-146
+tests/unit/test_engine_diff.py
+  d4cd6bd0795a4d00 178-180,195,205,209-234
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "6cb302420a00013a1c5888f33e29458f645b27fc",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [],
+      "tool_counts": {
+        "Bash": 158,
+        "Read": 43,
+        "AskUserQuestion": 8,
+        "ToolSearch": 1,
+        "TaskCreate": 29,
+        "TaskUpdate": 55,
+        "Write": 18,
+        "Edit": 54
+      },
+      "total_additions": 111,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

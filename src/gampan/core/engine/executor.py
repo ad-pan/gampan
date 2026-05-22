@@ -52,7 +52,17 @@ def execute_plan(
                 state.resources[change.key] = _entry(change.gam_id, change.desired)
             elif change.action == Action.DELETE:
                 assert change.gam_id is not None
-                client.delete(change.gam_id)
+                # ``delete`` is "archive" for backends without a hard-delete
+                # verb (NativeStyle SOAP archives via ``performNativeStyleAction
+                # ArchiveNativeStyles``). When the remote already reports
+                # ARCHIVED, the call is a no-op RPC — skip it to keep apply
+                # quiet on plans that flush leftover archived resources from
+                # state.json. State entry still gets removed below.
+                already_archived = (
+                    getattr(change.current, "status", None) == "ARCHIVED"
+                )
+                if not already_archived:
+                    client.delete(change.gam_id)
                 state.resources.pop(change.key, None)
 
             state.last_apply_at = datetime.now(tz=UTC)

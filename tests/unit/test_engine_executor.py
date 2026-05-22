@@ -116,6 +116,67 @@ def test_create_writes_gam_id_back_into_yaml(tmp_path: Path) -> None:
     assert lines[1] == "_gam_id: '101'"
 
 
+def test_delete_skips_rpc_when_remote_already_archived(tmp_path: Path) -> None:
+    """SOAP archive is idempotent but a redundant RPC is still noise. When
+    the remote already reports ARCHIVED, the executor must skip the call
+    yet still drop the row from state.json so plan stops re-surfacing it."""
+    from gampan.core.engine.diff import Action, Change
+    from gampan.core.engine.planner import Plan
+
+    archived = _ns("zombie")
+    archived = archived.model_copy(update={"status": "ARCHIVED"})
+
+    store = StateStore(tmp_path / "state.json")
+    store.save(State(network_code="0"))
+
+    plan = Plan(
+        changes=[
+            Change(
+                action=Action.DELETE,
+                key="NativeStyle:777",
+                gam_id="777",
+                desired=None,
+                current=archived,
+            )
+        ]
+    )
+    client = FakeClient()
+    execute_plan(plan, {"NativeStyle": client}, store, tool_version="t")
+
+    # No archive RPC for an already-archived row
+    assert client.deleted == []
+    # State entry still removed so the next plan stops complaining
+    state = store.load()
+    assert "NativeStyle:777" not in state.resources
+
+
+def test_delete_still_archives_when_remote_active(tmp_path: Path) -> None:
+    """Sanity check: the skip only fires for ARCHIVED. ACTIVE / INACTIVE
+    rows must still issue the archive RPC."""
+    from gampan.core.engine.diff import Action, Change
+    from gampan.core.engine.planner import Plan
+
+    active = _ns("live")
+    store = StateStore(tmp_path / "state.json")
+    store.save(State(network_code="0"))
+
+    plan = Plan(
+        changes=[
+            Change(
+                action=Action.DELETE,
+                key="NativeStyle:888",
+                gam_id="888",
+                desired=None,
+                current=active,
+            )
+        ]
+    )
+    client = FakeClient()
+    execute_plan(plan, {"NativeStyle": client}, store, tool_version="t")
+
+    assert client.deleted == ["888"]
+
+
 def test_failure_persists_partial_state(tmp_path: Path) -> None:
     store = StateStore(tmp_path / "state.json")
     store.save(State(network_code="0"))

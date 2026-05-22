@@ -37,8 +37,8 @@ class TemplateVariable(BaseModel):
     # We preserve it end-to-end so Storybook can render a real dropdown and
     # `gampan apply` can round-trip the template faithfully. Non-LIST/URL
     # variants leave this as None; LIST variants without choices are
-    # admin-authored description-only variables (e.g. Hogangnono's
-    # TARGET_WINDOW) — also None.
+    # admin-authored description-only variables (e.g. a TARGET_WINDOW
+    # control that the operator fills in at trafficking time) — also None.
     choices: list[Choice] | None = None
     # GAM exposes `allowOtherChoice` only on list/url variants. STRING/ASSET/
     # NUMBER leave it as None so we don't pollute the YAML with an irrelevant

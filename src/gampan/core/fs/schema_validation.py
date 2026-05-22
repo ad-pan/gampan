@@ -132,7 +132,14 @@ def validate_resource(data: dict[str, Any], repo_root: Path) -> None:
     to_check = {k: v for k, v in data.items() if k not in _LOADER_INJECTED_FIELDS}
 
     errors: list[ValidationError] = sorted(
-        validator.iter_errors(to_check), key=lambda e: list(e.absolute_path)
+        validator.iter_errors(to_check),
+        # Coerce every path segment to ``str`` before sorting. JSON Schema
+        # paths interleave dict keys (``str``) and list indices (``int``);
+        # comparing ``['items', 0]`` with ``['items', 'properties']``
+        # raises ``TypeError`` on Python 3. Stringification gives a stable
+        # ordering at the cost of "5" < "10" sort weirdness — acceptable
+        # because the order is only used for deterministic error output.
+        key=lambda e: [str(p) for p in e.absolute_path],
     )
     if not errors:
         return

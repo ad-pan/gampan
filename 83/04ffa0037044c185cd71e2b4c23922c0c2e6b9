@@ -1,0 +1,25 @@
+.changeset/apply-drift-precheck.md
+  h_5fc43fec215ff3 1-26
+.changeset/refresh-acknowledged-flag.md
+  h_5fc43fec215ff3 1-29
+src/gampan/cli/apply.py
+  h_5fc43fec215ff3 11,28-38,50-85,103-107,124-129,134-146
+src/gampan/cli/refresh.py
+  h_5fc43fec215ff3 35-41,51-55
+src/gampan/core/engine/diff.py
+  h_5fc43fec215ff3 101-137
+src/gampan/core/state/schema.py
+  h_5fc43fec215ff3 19-28
+tests/unit/test_engine_diff.py
+  h_5fc43fec215ff3 4-10,169-234
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "8304ffa0037044c185cd71e2b4c23922c0c2e6b9",
+  "prompts": {},
+  "humans": {
+    "h_5fc43fec215ff3": {
+      "author": "sejun@zigbang.com"
+    }
+  }
+}

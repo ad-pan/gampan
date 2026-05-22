@@ -8,15 +8,23 @@ from pathlib import Path
 import typer
 from ruamel.yaml import YAML
 
-from gampan.cli.plan import build_clients
-from gampan.core.fs.writer import write_resource
+from gampan.cli.plan import _load_config, build_clients
+from gampan.core.fs.loader import CONVENTION_DIRS
+from gampan.core.fs.writer import slugify, write_resource
 from gampan.core.state.schema import ResourceEntry
 from gampan.core.state.store import StateStore
 
-# Directories scanned when locating stale imported YAMLs. Mirrors the
-# layout `write_resource` writes into; native-formats holds NativeStyle-
-# related CreativeTemplates so it must be swept too.
-_LAYOUT_DIRS = ("native-styles", "creative-templates", "native-formats")
+# Maps each managed kind to the on-disk directories that may hold its
+# imported YAMLs. NativeStyle only lives under ``native-styles/``;
+# CreativeTemplate is split between ``creative-templates/`` (regular
+# templates) and ``native-formats/`` (the Google-shipped native ad format
+# templates carried as CreativeTemplates with ``native_eligible=true``).
+# ``--resource native-styles`` therefore avoids re-parsing the (large)
+# native-formats / creative-templates directories.
+_KIND_DIRS: dict[str, tuple[str, ...]] = {
+    "NativeStyle": ("native-styles",),
+    "CreativeTemplate": ("creative-templates", "native-formats"),
+}
 
 
 def run(
@@ -34,42 +42,37 @@ def run(
 ) -> None:
     """Pull GAM resources into YAML + populate state.json."""
     root = Path.cwd()
-    cfg_path = root / ".gampan" / "config.yml"
-    if not cfg_path.exists():
-        typer.echo("Not a gampan repo (missing .gampan/config.yml). Run `gampan init` first.")
-        raise typer.Exit(code=1)
-    yaml = YAML(typ="safe")
-    cfg = dict(yaml.load(cfg_path.read_text()))
+    try:
+        cfg = _load_config(root)
+    except FileNotFoundError as e:
+        typer.echo(
+            "Not a gampan repo (missing .gampan/config.yml). "
+            "Run `gampan init` first."
+        )
+        raise typer.Exit(code=1) from e
+
     effective_include_archived = (
-        bool(cfg.get("include_archived", False))
-        if include_archived is None
-        else include_archived
+        cfg.include_archived if include_archived is None else include_archived
     )
 
-    clients = build_clients(cfg["network_code"])
+    clients = build_clients(cfg.network_code)
 
     store = StateStore(root / ".gampan" / "state.json")
-    state = store.load_or_empty(network_code=cfg["network_code"])
+    state = store.load_or_empty(network_code=cfg.network_code)
 
     kinds = _resolve_kinds(resource)
-    # Track seen filename stems per-run to disambiguate slug collisions.
     seen_slugs: set[str] = set()
-    # Track any stems that were disambiguated so we can report them.
-    disambiguated: list[tuple[str, str]] = []  # (original_slug, final_stem)
+    disambiguated: list[tuple[str, str]] = []
 
-    # Map each imported YAML's ``_gam_id`` → on-disk path *before* writing.
-    # When a resource has been renamed on the remote, ``write_resource`` lays
-    # the file down under the new slug but the old-slug YAML (and its
-    # ``.html`` / ``.css`` side files) would otherwise linger as an orphan
-    # and trip ``validate_no_duplicates`` on the next plan/apply.
-    existing_yaml_by_gam_id = _collect_existing_yaml_by_gam_id(root)
+    # Pre-scan only the directories the active --resource filter cares
+    # about; a NativeStyle-only import does not need to parse the
+    # creative-templates dir.
+    existing_yaml_by_gam_id = _collect_existing_yaml_by_gam_id(root, kinds)
     orphans_removed: list[Path] = []
 
     for kind in kinds:
         for gam_id, r in clients[kind].list(include_archived=effective_include_archived):
-            from gampan.core.fs.writer import slugify as _slugify
-
-            slug_before = _slugify(r.name)
+            slug_before = slugify(r.name)
             yaml_path, stem = write_resource(root, r, gam_id=gam_id, seen_slugs=seen_slugs)
             if slug_before and stem != slug_before:
                 disambiguated.append((slug_before, stem))
@@ -94,24 +97,33 @@ def run(
         for orig, final in disambiguated:
             typer.echo(f"  {orig} → {final}")
     if orphans_removed:
-        typer.echo(
-            "\nRemoved orphan YAML(s) after rename (same _gam_id, new slug):"
-        )
+        typer.echo("\nRemoved orphan YAML(s) after rename (same _gam_id, new slug):")
         for p in orphans_removed:
             typer.echo(f"  - {p.relative_to(root)}")
 
 
-def _collect_existing_yaml_by_gam_id(root: Path) -> dict[str, Path]:
-    """Return ``{_gam_id: yaml_path}`` for every imported YAML on disk.
+def _collect_existing_yaml_by_gam_id(
+    root: Path, kinds: list[str]
+) -> dict[str, Path]:
+    """Return ``{_gam_id: yaml_path}`` for previously-imported YAMLs.
 
-    User-authored YAMLs (no ``_gam_id`` field yet) are intentionally
-    skipped — import should never touch a file the operator authored
-    locally. Errors loading individual files are swallowed so a stray
-    malformed YAML elsewhere does not block the rename-detection path.
+    Only scans directories that map to *kinds* (a NativeStyle-only run
+    skips the creative-templates dir entirely). User-authored YAMLs
+    (no ``_gam_id`` field yet) are intentionally skipped — import must
+    never touch a file the operator authored locally. Per-file parse
+    errors are swallowed so a malformed YAML elsewhere does not block
+    the rename-detection path.
     """
+    dirs = {d for k in kinds for d in _KIND_DIRS.get(k, ())}
+    # Defensive: a future ``--resource`` value that the kind map does not
+    # cover falls back to the full convention sweep rather than silently
+    # skipping rename detection.
+    if not dirs:
+        dirs = set(CONVENTION_DIRS)
+
     yaml_safe = YAML(typ="safe")
     out: dict[str, Path] = {}
-    for dirname in _LAYOUT_DIRS:
+    for dirname in dirs:
         d = root / dirname
         if not d.exists():
             continue
@@ -130,13 +142,12 @@ def _collect_existing_yaml_by_gam_id(root: Path) -> dict[str, Path]:
 
 
 def _remove_orphan_yaml(yaml_path: Path) -> list[Path]:
-    """Delete a rename-orphaned YAML and its side files.
+    """Delete a rename-orphaned YAML and its ``.html`` / ``.css`` siblings.
 
-    ``write_resource`` emits ``<stem>.<kind-suffix>.yaml`` plus optional
-    ``<stem>.<kind-suffix>.html`` and ``<stem>.<kind-suffix>.css`` files
-    next to it (the ``!file`` references inside the YAML). The
-    rename-detection logic only knows about the YAML, so glob the rest
-    by stripping ``.yaml`` from the filename and matching siblings.
+    ``write_resource`` emits ``<stem>.<kind-suffix>.yaml`` plus the side
+    files the ``!file`` references resolve to; rename detection only
+    knows about the YAML, so glob the rest by stripping ``.yaml`` from
+    the filename and matching siblings.
     """
     removed: list[Path] = []
     if yaml_path.exists():

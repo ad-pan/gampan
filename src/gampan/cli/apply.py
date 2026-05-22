@@ -7,7 +7,14 @@ from pathlib import Path
 import typer
 
 from gampan import __version__
-from gampan.cli.plan import _load_config, _load_current, _load_desired, build_clients
+from gampan.cli._render import render_plan
+from gampan.cli.plan import (
+    _load_config,
+    _load_current,
+    _load_desired,
+    _managed_kinds,
+    build_clients,
+)
 from gampan.core.engine.diff import (
     CreativeTemplateReadOnlyError,
     MissingRemoteError,
@@ -16,6 +23,7 @@ from gampan.core.engine.diff import (
 )
 from gampan.core.engine.executor import execute_plan
 from gampan.core.engine.planner import build_plan
+from gampan.core.state.schema import State
 from gampan.core.state.store import StateStore
 
 
@@ -51,22 +59,21 @@ def run(
     )
 
     desired, desired_yaml_paths = _load_desired(root, cfg)
-    current = _load_current(clients, include_archived=effective_include_archived)
+    # Mirror ``plan``'s ``managed_kinds`` scoping — otherwise apply would
+    # query every client kind, fetching resources plan never looked at and
+    # silently widening the drift pre-check window.
+    managed = _managed_kinds(root, desired)
+    current = _load_current(
+        clients,
+        kinds=managed,
+        include_archived=effective_include_archived,
+    )
 
-    # Drift pre-check: compare the just-fetched remote checksums against the
-    # state.json snapshot left by the previous import/apply. A mismatch means
-    # someone — the GAM UI, another apply, or an out-of-band SDK call —
-    # touched a resource since we last looked. Without the guard, build_plan
-    # would happily re-emit the YAML state and silently overwrite that
-    # change. With ``--allow-drift`` the operator can override after eyeballing
-    # the diff.
     store = StateStore(root / ".gampan" / "state.json")
-    state_snapshot = store.load()
+    state = store.load()
+
     drifted = detect_remote_drift(
-        {
-            k: (v.checksum_remote, v.drift_acknowledged)
-            for k, v in state_snapshot.resources.items()
-        },
+        {k: (v.checksum_remote, v.drift_acknowledged) for k, v in state.resources.items()},
         current,
     )
     if drifted:
@@ -99,12 +106,8 @@ def run(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(code=1) from e
 
-    from gampan.cli._render import render_plan
-
     render_plan(plan, show_unchanged=False)
 
-    # v0.1 backend constraint: CreativeTemplate is read-only via REST.
-    # Refuse before executor so a half-applied state cannot happen.
     try:
         validate_v0_1_constraints(plan.changes)
     except CreativeTemplateReadOnlyError as e:
@@ -113,11 +116,11 @@ def run(
 
     if not plan.has_pending:
         typer.echo("No changes.")
-        # No CRUD action will touch the drifted keys, so executor's per-action
-        # _entry() rewrite cannot ack them. Reset the flag here so the operator
-        # does not have to pass ``--allow-drift`` again on the next run.
-        if drifted:
-            _ack_drift_keys(store, drifted)
+        # No CRUD action will touch drifted keys; ack them in the
+        # already-loaded state and persist once so the operator does not
+        # have to re-pass ``--allow-drift`` on the next run.
+        if _ack_drifted(state, drifted):
+            store.save(state)
         return
 
     if not auto_approve:
@@ -127,27 +130,32 @@ def run(
             raise typer.Exit(code=3)
 
     try:
-        execute_plan(
+        final_state = execute_plan(
             plan,
             clients,
             store,
             tool_version=f"gampan/{__version__}",
             root=root,
+            initial_state=state,
         )
-        # executor's _entry() already sets drift_acknowledged=True for keys it
-        # CREATE/UPDATE'd. Catch any leftover drifted keys that the plan did
-        # not touch (e.g. drift on resource A, plan only changed resource B)
-        # so the operator's ``--allow-drift`` decision sticks across runs.
-        if drifted:
-            _ack_drift_keys(store, drifted)
+        # ``_entry()`` already acks keys the executor CREATE/UPDATE'd.
+        # Catch the leftover keys that drifted but were untouched by the
+        # plan (drift on A, plan only changed B), then collapse the
+        # drift-ack save with the executor's last save.
+        if _ack_drifted(final_state, drifted):
+            store.save(final_state)
         typer.echo("\nDone.")
     except Exception as e:
         typer.echo(f"\nFailed: {e}", err=True)
         raise typer.Exit(code=1) from e
 
 
-def _ack_drift_keys(store: StateStore, keys: list[str]) -> None:
-    state = store.load()
+def _ack_drifted(state: State, keys: list[str]) -> bool:
+    """Flip ``drift_acknowledged`` to ``True`` on each listed key in place.
+
+    Returns whether anything actually changed so callers can decide
+    whether the follow-up ``store.save`` is needed.
+    """
     changed = False
     for k in keys:
         entry = state.resources.get(k)
@@ -155,5 +163,4 @@ def _ack_drift_keys(store: StateStore, keys: list[str]) -> None:
             continue
         entry.drift_acknowledged = True
         changed = True
-    if changed:
-        store.save(state)
+    return changed

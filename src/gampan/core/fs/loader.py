@@ -20,12 +20,17 @@ CONVENTION_MAP = {
 
 # Directories scanned in convention mode. Each may contain mixed kinds — the
 # loader trusts the ``kind:`` field in the YAML body, the directory and
-# filename suffix are organisational hints.
-_CONVENTION_DIRS: tuple[str, ...] = (
+# filename suffix are organisational hints. Exported (no leading underscore)
+# so the import CLI can walk the same set when scanning for rename-orphan
+# YAMLs.
+CONVENTION_DIRS: tuple[str, ...] = (
     "creative-templates",
     "native-formats",
     "native-styles",
 )
+# Back-compat alias for the prior private name; remove once no internal
+# caller references it.
+_CONVENTION_DIRS = CONVENTION_DIRS
 
 
 def load_all(repo_root: Path, config: Config) -> list[dict[str, Any]]:

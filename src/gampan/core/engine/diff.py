@@ -7,7 +7,15 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from gampan.core.errors import GampanError
 from gampan.core.protocols import Resource
+
+# Shared marker for ``state_key`` values that represent a user-authored
+# YAML which has not yet been imported (no ``_gam_id`` on disk). The CLI
+# constructs keys as ``f"{kind}:{NEW_KEY_MARKER}:{slug}-{hash}"`` and the
+# planner detects them via ``NEW_KEY_MARKER in key``. Centralised so a
+# future rename touches one place instead of two.
+NEW_KEY_MARKER = ":NEW:"
 
 
 class Action(StrEnum):
@@ -91,14 +99,14 @@ def _list_diff(a: list[Any], b: list[Any], prefix: str) -> list[FieldDiff]:
     return out
 
 
-class MissingRemoteError(ValueError):
+class MissingRemoteError(GampanError):
     """Raised when a YAML carries a real ``_gam_id`` but the remote lookup
     returned no matching resource. Almost always means the resource was
     filtered out by ``include_archived=False`` — flipping the flag (or
     ``--include-archived`` on the CLI) is the standard recovery."""
 
 
-class CreativeTemplateReadOnlyError(ValueError):
+class CreativeTemplateReadOnlyError(GampanError):
     """Raised at plan-time when a Change would CREATE / UPDATE / DELETE a
     CreativeTemplate. GAM's REST Beta exposes ``list`` / ``get`` for
     CreativeTemplate but not the write verbs, so any such Change would
@@ -117,9 +125,15 @@ def validate_v0_1_constraints(changes: list["Change"]) -> None:
     so the operator sees what would have happened, but the runner refuses
     to proceed.
     """
+    # Import locally to avoid a circular import: ``CreativeTemplate``'s
+    # module imports the diff module's ``Action`` indirectly via shared
+    # types in a few code paths.
+    from gampan.gam.models.creative_template import CreativeTemplate
+
     offending = [
         c for c in changes
-        if c.key.startswith("CreativeTemplate:") and c.action != Action.NO_CHANGE
+        if c.key.partition(":")[0] == CreativeTemplate.kind
+        and c.action != Action.NO_CHANGE
     ]
     if not offending:
         return
@@ -155,18 +169,19 @@ def detect_remote_drift(
     rows whose ``checksum_remote`` was never populated are skipped:
     drift can only be detected against a known prior state.
     """
+    # Iterate ``state_entries`` (small — only what this repo manages)
+    # rather than ``current`` (every remote resource the API hands back).
+    # The two are typically off by an order of magnitude when an account
+    # carries hundreds of built-in templates.
     drifted: list[str] = []
-    for key, (_gam_id, model) in current.items():
-        entry = state_entries.get(key)
-        if entry is None:
-            continue
-        recorded_checksum, acknowledged = entry
+    for key, (recorded_checksum, acknowledged) in state_entries.items():
         if not recorded_checksum:
             continue
-        if model.checksum() != recorded_checksum:
-            drifted.append(key)
+        remote = current.get(key)
+        if remote is None:
             continue
-        if not acknowledged:
+        _gam_id, model = remote
+        if model.checksum() != recorded_checksum or not acknowledged:
             drifted.append(key)
     return drifted
 
@@ -202,7 +217,7 @@ def diff_resources(
 
     for key, r in desired:
         if key not in current:
-            if strict_missing_remote and ":NEW:" not in key:
+            if strict_missing_remote and NEW_KEY_MARKER not in key:
                 raise MissingRemoteError(
                     f"{key}: tracked in YAML but absent from the remote lookup. "
                     "ARCHIVED resources are filtered by default — rerun with "

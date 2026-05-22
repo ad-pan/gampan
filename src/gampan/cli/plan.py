@@ -13,6 +13,7 @@ from ruamel.yaml import YAML
 
 from gampan.cli._render import render_plan, render_summary
 from gampan.core.engine.diff import (
+    NEW_KEY_MARKER,
     CreativeTemplateReadOnlyError,
     MissingRemoteError,
     validate_v0_1_constraints,
@@ -171,7 +172,7 @@ def _load_desired(
             # User-authored YAML — stable synthetic key so re-runs are idempotent.
             name_slug = slugify(model.name) or "unnamed"
             name_hash = hashlib.sha256(model.name.encode()).hexdigest()[:8]
-            key = f"{kind}:NEW:{name_slug}-{name_hash}"
+            key = f"{kind}{NEW_KEY_MARKER}{name_slug}-{name_hash}"
         out.append((key, model))
         if source:
             paths[key] = source

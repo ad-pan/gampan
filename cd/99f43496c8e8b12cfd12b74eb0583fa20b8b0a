@@ -1,0 +1,40 @@
+.mise/tasks/build
+  d4cd6bd0795a4d00 5-14,30,32
+.github/workflows/release.yml
+  d4cd6bd0795a4d00 12-17,22-23,25-40,44
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "cd99f43496c8e8b12cfd12b74eb0583fa20b8b0a",
+  "prompts": {
+    "d4cd6bd0795a4d00": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "97b802ce-b701-4d2c-a89c-bb4c081c35fd",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 259,
+        "Read": 69,
+        "AskUserQuestion": 9,
+        "ToolSearch": 2,
+        "TaskCreate": 42,
+        "TaskUpdate": 81,
+        "Write": 25,
+        "Edit": 99,
+        "Skill": 1,
+        "Agent": 3,
+        "Monitor": 1
+      },
+      "total_additions": 60,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

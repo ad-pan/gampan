@@ -137,9 +137,7 @@ def _load_config(root: Path) -> Config:
     return Config.model_validate(yaml.load((root / ".gampan" / "config.yml").read_text()))
 
 
-def _load_desired(
-    root: Path, cfg: Config
-) -> tuple[list[tuple[str, Resource]], dict[str, str]]:
+def _load_desired(root: Path, cfg: Config) -> tuple[list[tuple[str, Resource]], dict[str, str]]:
     """Load YAML resources and return ``(desired, yaml_paths)``.
 
     ``desired`` is a list of ``(state_key, model)`` pairs; ``yaml_paths``

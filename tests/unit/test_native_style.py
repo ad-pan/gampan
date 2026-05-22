@@ -15,7 +15,11 @@ def test_build_from_dict() -> None:
         template_id=1,
         html="<div/>",
         css="",
-        targeting={"inventoryTargeting": {"targetedAdUnits": [{"adUnitId": "1", "includeDescendants": True}]}},
+        targeting={
+            "inventoryTargeting": {
+                "targetedAdUnits": [{"adUnitId": "1", "includeDescendants": True}],
+            },
+        },
         status="ACTIVE",
     )
     assert ns.kind == "NativeStyle"

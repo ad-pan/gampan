@@ -148,7 +148,10 @@ def test_list_variable_choices_round_trip() -> None:
     }
     t = CreativeTemplate.from_remote(raw)
     var = t.variables[0]
-    assert var.choices == [Choice(label="_blank", value="_blank"), Choice(label="_top", value="_top")]
+    assert var.choices == [
+        Choice(label="_blank", value="_blank"),
+        Choice(label="_top", value="_top"),
+    ]
     assert var.allow_other_choice is False
     out = t.to_remote()
     assert out["variables"][0]["choices"] == [

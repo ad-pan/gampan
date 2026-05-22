@@ -1,0 +1,47 @@
+knope.toml
+  285536f587eee1b0 1-48
+.changeset/adopt-knope.md
+  285536f587eee1b0 1-14
+package.json
+  285536f587eee1b0 2
+.github/workflows/ci.yml
+  285536f587eee1b0 9-33
+.github/workflows/release.yml
+  285536f587eee1b0 49-51,57-59
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "3bcc538019c5df6bb24be22eb4829ae4fc4dcfe4",
+  "prompts": {
+    "285536f587eee1b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34e77f93-d3df-4cc8-9df3-d0f297a556a6",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 291,
+        "Read": 72,
+        "AskUserQuestion": 9,
+        "ToolSearch": 3,
+        "TaskCreate": 46,
+        "TaskUpdate": 89,
+        "Write": 31,
+        "Edit": 112,
+        "Skill": 1,
+        "Agent": 3,
+        "Monitor": 1,
+        "WebFetch": 7
+      },
+      "total_additions": 62,
+      "total_deletions": 0,
+      "overriden_lines": 73
+    }
+  }
+}

@@ -12,7 +12,11 @@ import typer
 from ruamel.yaml import YAML
 
 from gampan.cli._render import render_plan, render_summary
-from gampan.core.engine.diff import MissingRemoteError
+from gampan.core.engine.diff import (
+    CreativeTemplateReadOnlyError,
+    MissingRemoteError,
+    validate_v0_1_constraints,
+)
 from gampan.core.engine.planner import build_plan
 from gampan.core.fs.config import Config
 from gampan.core.fs.loader import load_all, validate_no_duplicates
@@ -88,6 +92,15 @@ def run(
         )
     except MissingRemoteError as e:
         typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+
+    # v0.1 backend constraint: CreativeTemplate write verbs are not exposed.
+    # Render the plan so the operator can see the would-be diff, then refuse.
+    try:
+        validate_v0_1_constraints(plan.changes)
+    except CreativeTemplateReadOnlyError as e:
+        render_plan(plan, show_unchanged=show_unchanged)
+        typer.echo(f"\nError: {e}", err=True)
         raise typer.Exit(code=1) from e
 
     if as_json:

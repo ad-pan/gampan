@@ -3,10 +3,13 @@ import pytest
 
 from gampan.core.engine.diff import (
     Action,
+    Change,
+    CreativeTemplateReadOnlyError,
     FieldDiff,
     MissingRemoteError,
     detect_remote_drift,
     diff_resources,
+    validate_v0_1_constraints,
 )
 from gampan.gam.models.creative_template import CreativeTemplate, TemplateVariable
 from gampan.gam.models.native_style import NativeStyle, Size
@@ -221,6 +224,51 @@ def test_detect_remote_drift_flags_unacknowledged_refresh() -> None:
         current={"NativeStyle:1": ("1", a)},
     )
     assert drifted == ["NativeStyle:1"]
+
+
+def test_validate_v0_1_constraints_blocks_creative_template_writes() -> None:
+    """CreativeTemplate UPDATE/CREATE/DELETE must be refused at plan time —
+    GAM REST has no write verb so any such Change would crash the
+    executor with NotImplementedError later. Catch it up front so the
+    operator can revert the YAML."""
+    bad = Change(
+        action=Action.UPDATE,
+        key="CreativeTemplate:42",
+        gam_id="42",
+        desired=_ct("touched", description="new"),
+        current=_ct("touched", description="old"),
+    )
+    with pytest.raises(CreativeTemplateReadOnlyError) as exc:
+        validate_v0_1_constraints([bad])
+    assert "CreativeTemplate:42" in str(exc.value)
+    assert "UPDATE" in str(exc.value)
+
+
+def test_validate_v0_1_constraints_allows_no_change_creative_template() -> None:
+    """NO_CHANGE on a CreativeTemplate is fine — the operator did not try
+    to write anything, the row just shows up because the kind is managed."""
+    ct = _ct("untouched")
+    noop = Change(
+        action=Action.NO_CHANGE,
+        key="CreativeTemplate:42",
+        gam_id="42",
+        desired=ct,
+        current=ct,
+    )
+    validate_v0_1_constraints([noop])  # must not raise
+
+
+def test_validate_v0_1_constraints_passes_native_style_writes() -> None:
+    """NativeStyle has full SOAP CRUD coverage in v0.1, so its writes must
+    keep passing through unchanged."""
+    ns_change = Change(
+        action=Action.CREATE,
+        key="NativeStyle:NEW:a-1",
+        gam_id=None,
+        desired=_ns("a"),
+        current=None,
+    )
+    validate_v0_1_constraints([ns_change])  # must not raise
 
 
 def test_detect_remote_drift_treats_acknowledged_match_as_clean() -> None:

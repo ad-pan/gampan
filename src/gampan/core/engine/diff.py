@@ -98,6 +98,42 @@ class MissingRemoteError(ValueError):
     ``--include-archived`` on the CLI) is the standard recovery."""
 
 
+class CreativeTemplateReadOnlyError(ValueError):
+    """Raised at plan-time when a Change would CREATE / UPDATE / DELETE a
+    CreativeTemplate. GAM's REST Beta exposes ``list`` / ``get`` for
+    CreativeTemplate but not the write verbs, so any such Change would
+    crash with NotImplementedError once apply reached the executor.
+    Surface it during plan instead so the operator can revert the YAML
+    (or do the change through the GAM UI) before getting to a half-applied
+    state."""
+
+
+def validate_v0_1_constraints(changes: list["Change"]) -> None:
+    """Block changes the v0.1 backends cannot honour.
+
+    Today: CreativeTemplate is read-only via REST, so any non-NO_CHANGE
+    action on that kind would fail inside the executor. Catching it here
+    keeps ``plan`` and ``apply`` honest — the diff still gets rendered
+    so the operator sees what would have happened, but the runner refuses
+    to proceed.
+    """
+    offending = [
+        c for c in changes
+        if c.key.startswith("CreativeTemplate:") and c.action != Action.NO_CHANGE
+    ]
+    if not offending:
+        return
+    body = "\n".join(f"  {c.action} {c.key}" for c in offending)
+    raise CreativeTemplateReadOnlyError(
+        "CreativeTemplate is read-only in gampan v0.1 — GAM's REST Beta does "
+        "not expose create/update/archive verbs. Refusing the following "
+        "changes:\n"
+        f"{body}\n"
+        "Either edit the affected creative templates through the GAM UI and "
+        "rerun `gampan import`, or revert the YAML changes."
+    )
+
+
 def detect_remote_drift(
     state_entries: dict[str, "tuple[str, bool]"],
     current: dict[str, tuple[str, Resource]],

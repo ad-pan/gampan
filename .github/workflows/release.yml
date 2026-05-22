@@ -46,13 +46,69 @@ jobs:
   changesets:
     runs-on: ubuntu-latest
     needs: [release]
+    permissions:
+      contents: write       # tag + release creation, version commit
+      pull-requests: write  # Release PR creation / update
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: jdx/mise-action@v2
-      - uses: changesets/action@v1
+      - run: mise run deps
+
+      # When ``.changeset/*.md`` files are present, changesets/action opens
+      # (or amends) a "Release PR" that contains the ``changeset version``
+      # output — bumps ``package.json``, regenerates ``CHANGELOG.md``, and
+      # deletes the consumed changeset files. Merging that PR is what
+      # triggers the actual release on the next ``main`` push.
+      #
+      # No ``publish`` input: gampan is not an npm package. Binary release
+      # is handled below by detecting the version commit and uploading the
+      # nuitka artefacts from the matrix build to a GitHub release.
+      - id: changesets
+        uses: changesets/action@v1
         with:
-          publish: pnpm dlx @changesets/cli publish
+          version: pnpm dlx @changesets/cli version
+          title: "chore(release): version packages"
+          commit: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Detect "we just merged the Release PR" by matching the commit
+      # message changesets/action wrote. When matched, pull the project
+      # version out of ``pyproject.toml`` (kept in sync manually for now;
+      # automatic sync tracked as a follow-up) and produce a tag-named
+      # GitHub release with the nuitka binaries attached.
+      - name: Detect release commit
+        id: release_check
+        run: |
+          msg=$(git log -1 --pretty=%s)
+          if [[ "$msg" == "chore(release): version packages" ]]; then
+            ver=$(grep -E '^version *=' pyproject.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+            {
+              echo "is_release=true"
+              echo "version=$ver"
+              echo "tag=v$ver"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download nuitka artefacts
+        if: steps.release_check.outputs.is_release == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          path: artefacts
+          merge-multiple: true
+
+      - name: Create GitHub release + attach binaries
+        if: steps.release_check.outputs.is_release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # ``CHANGELOG.md`` already starts with the section changesets just
+          # wrote for this version, so use it directly as the release body.
+          gh release create "${{ steps.release_check.outputs.tag }}" \
+            --title "${{ steps.release_check.outputs.tag }}" \
+            --notes-file CHANGELOG.md \
+            artefacts/gampan-darwin-arm64 \
+            artefacts/gampan-darwin-x86_64 \
+            artefacts/gampan-linux-x86_64

@@ -17,8 +17,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@v2
-      - run: pnpm dlx @changesets/cli status --since=origin/${{ github.base_ref }}
+      # No mise / pnpm needed: ``ubuntu-latest`` ships with node + npx,
+      # which is all ``@changesets/cli status`` requires.
+      - run: npx --yes @changesets/cli status --since=origin/${{ github.base_ref }}
 
   test:
     runs-on: ubuntu-latest

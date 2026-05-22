@@ -16,6 +16,16 @@ class ResourceEntry(BaseModel):
     checksum_local: str
     checksum_remote: str
     last_modified_remote: datetime | None = None
+    # ``True`` once an operator has consciously processed the
+    # most recently observed remote state — i.e. an ``apply`` that
+    # wrote the YAML to GAM, an ``import`` that pulled GAM into the
+    # YAML, or the initial scaffold. ``refresh`` flips this to
+    # ``False`` for any key whose remote checksum diverged so the
+    # next ``apply`` cannot silently overwrite the drift just because
+    # ``checksum_remote`` was already updated to the post-drift value.
+    # Defaults to ``True`` so state.json files written by gampan
+    # <= 0.1.x keep loading and behave like ack'd entries.
+    drift_acknowledged: bool = True
 
 
 class State(BaseModel):

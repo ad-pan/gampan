@@ -32,6 +32,13 @@ def run() -> None:
             new_cs = r.checksum()
             if entry.checksum_remote != new_cs:
                 drifted.append(key)
+                # ``refresh`` records the new remote checksum so ``plan`` can
+                # surface the drift as a normal UPDATE diff — but the operator
+                # has not yet decided whether to overwrite, re-import, or
+                # accept the change. Mark the entry unacknowledged so the next
+                # ``apply`` aborts (or warns under ``--allow-drift``) instead
+                # of treating the post-refresh checksum as the new baseline.
+                entry.drift_acknowledged = False
             entry.checksum_remote = new_cs
             entry.gam_id = gam_id  # heal any drifted ID
 
@@ -41,5 +48,10 @@ def run() -> None:
         typer.echo("Drift detected (remote changed since last apply):")
         for k in drifted:
             typer.echo(f"  {k}")
+        typer.echo(
+            "\nNext: run `gampan plan` to inspect the diff, then either "
+            "`gampan import` to absorb the remote, `gampan apply --allow-drift` "
+            "to overwrite with the YAML, or edit the YAML to reconcile."
+        )
     else:
         typer.echo("No drift.")

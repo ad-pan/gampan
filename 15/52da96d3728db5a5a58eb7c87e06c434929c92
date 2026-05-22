@@ -1,0 +1,21 @@
+src/gampan/gam/clients/rest.py
+  714fd387df907bcc 137,139-144,153-170
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "1552da96d3728db5a5a58eb7c87e06c434929c92",
+  "prompts": {
+    "714fd387df907bcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "103c0d14-5580-4ef3-b178-719d137f0e4b",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [],
+      "tool_counts": {},
+      "total_additions": 0,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

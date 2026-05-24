@@ -1,0 +1,59 @@
+.github/workflows/release.yml
+  285536f587eee1b0 11-14
+.changeset/drop-darwin-x86_64.md
+  285536f587eee1b0 1-12
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "e3c2c0fdefd08aa92bf200bd591ced8b0918486b",
+  "prompts": {
+    "285536f587eee1b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34e77f93-d3df-4cc8-9df3-d0f297a556a6",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        },
+        {
+          "id": "loop:watch",
+          "ts": "2026-05-22T14:57:34.697Z"
+        },
+        {
+          "id": "loop:check",
+          "ts": "2026-05-22T15:52:00.846Z"
+        },
+        {
+          "id": "loop:verify",
+          "ts": "2026-05-22T16:22:00.310Z"
+        },
+        {
+          "id": "loop:verify",
+          "ts": "2026-05-22T16:39:00.440Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 397,
+        "Read": 80,
+        "AskUserQuestion": 16,
+        "ToolSearch": 5,
+        "TaskCreate": 50,
+        "TaskUpdate": 94,
+        "Write": 36,
+        "Edit": 132,
+        "Skill": 1,
+        "Agent": 3,
+        "Monitor": 1,
+        "WebFetch": 8,
+        "ScheduleWakeup": 4,
+        "PushNotification": 1
+      },
+      "total_additions": 20,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

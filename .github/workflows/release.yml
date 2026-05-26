@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
 
+# Top-level least-privilege. The `knope` job declares its own
+# `permissions:` block (contents: write + pull-requests: write) to
+# override this just for the release commit + tag + PR.
+permissions:
+  contents: read
+
 jobs:
   release:
     runs-on: ${{ matrix.os }}

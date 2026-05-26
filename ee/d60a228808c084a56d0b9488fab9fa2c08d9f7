@@ -1,0 +1,63 @@
+.github/workflows/ci.yml
+  285536f587eee1b0 8-10
+.github/workflows/release.yml
+  285536f587eee1b0 7-12
+.github/workflows/e2e-nightly.yml
+  285536f587eee1b0 8-10
+.changeset/workflow-permissions.md
+  285536f587eee1b0 1-10
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "eed60a228808c084a56d0b9488fab9fa2c08d9f7",
+  "prompts": {
+    "285536f587eee1b0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34e77f93-d3df-4cc8-9df3-d0f297a556a6",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "code-review",
+          "ts": "2026-05-22T03:35:38.016Z"
+        },
+        {
+          "id": "loop:watch",
+          "ts": "2026-05-22T14:57:34.697Z"
+        },
+        {
+          "id": "loop:check",
+          "ts": "2026-05-22T15:52:00.846Z"
+        },
+        {
+          "id": "loop:verify",
+          "ts": "2026-05-22T16:22:00.310Z"
+        },
+        {
+          "id": "loop:verify",
+          "ts": "2026-05-22T16:39:00.440Z"
+        }
+      ],
+      "tool_counts": {
+        "Bash": 417,
+        "Read": 83,
+        "AskUserQuestion": 17,
+        "ToolSearch": 5,
+        "TaskCreate": 50,
+        "TaskUpdate": 94,
+        "Write": 39,
+        "Edit": 136,
+        "Skill": 1,
+        "Agent": 3,
+        "Monitor": 1,
+        "WebFetch": 8,
+        "ScheduleWakeup": 4,
+        "PushNotification": 1
+      },
+      "total_additions": 22,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

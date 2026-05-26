@@ -2,18 +2,105 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import typer
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
 
-from gampan.cli._envs import resolve_multi_envs
+from gampan.cli._envs import V1_DEFAULT_ENV, resolve_multi_envs
 from gampan.cli.plan import _load_config, build_clients
+from gampan.core.engine.executor import stamp_gam_id_into_yaml
 from gampan.core.fs.loader import CONVENTION_DIRS
 from gampan.core.fs.writer import slugify, write_resource
-from gampan.core.state.schema import ResourceEntry
+from gampan.core.hooks.contract import TransformInput, TransformOutput
+from gampan.core.hooks.discover import resolve_hook_path
+from gampan.core.hooks.invoke import invoke_hook
+from gampan.core.state.schema import EnvironmentSlice, ResourceEntry
 from gampan.core.state.store import StateStore
+from gampan.gam.models.creative_template import CreativeTemplate
+from gampan.gam.models.native_style import NativeStyle
+
+
+@dataclass
+class MergedResource:
+    """A canonical resource folded across one-or-more environments.
+
+    ``gam_ids`` always carries one entry per env where the resource was
+    observed; ``envs`` records the explicit ``_envs:`` annotation when
+    the resource does NOT participate in every declared env (None ⇒
+    participates in all declared envs, so the annotation can be omitted).
+    """
+
+    kind: str
+    canonical_name: str
+    gam_ids: dict[str, str]
+    payload: dict[str, Any]
+    envs: list[str] | None
+
+
+class ImportConflict(Exception):
+    """Same canonical name appears in multiple envs with differing content."""
+
+
+def reconcile_across_envs(
+    per_env: dict[str, list[dict[str, Any]]],
+    declared_envs: list[str] | None = None,
+) -> list[MergedResource]:
+    """Fold per-env reverse-transformed resource lists into canonical YAML descriptors.
+
+    Each input resource dict carries its env-side ``gam_id`` field; the
+    reconciliation strips that before comparing content (gam_id is per-env
+    by design and never matches across envs).
+
+    Args:
+        per_env: ``{env: [resource_dict, ...]}``. Each resource_dict must
+            carry ``kind``, ``name``, and ``gam_id`` keys plus whatever
+            shape the kind's model serialises to.
+        declared_envs: The full set of env names the operator asked to
+            import. When the per-env subset for a given resource matches
+            this set the ``envs`` annotation is omitted; otherwise the
+            subset is recorded so a later partial-env apply can filter.
+
+    Raises:
+        ImportConflict: Two envs produced resources with the same
+            canonical name but differing content (gam_id excluded).
+    """
+    declared = declared_envs or list(per_env)
+    grouped: dict[tuple[str, str], dict[str, dict[str, Any]]] = {}
+    for env, resources in per_env.items():
+        for r in resources:
+            key = (r["kind"], r["name"])
+            grouped.setdefault(key, {})[env] = r
+
+    merged: list[MergedResource] = []
+    for (kind, name), per_env_resource in grouped.items():
+        normalized = {
+            env: {k: v for k, v in res.items() if k != "gam_id"}
+            for env, res in per_env_resource.items()
+        }
+        first_env, first_norm = next(iter(normalized.items()))
+        for env, norm in normalized.items():
+            if norm != first_norm:
+                raise ImportConflict(
+                    f"{kind}:{name}: content differs between envs {first_env} and {env}"
+                )
+        gam_ids = {env: str(res["gam_id"]) for env, res in per_env_resource.items()}
+        envs_present = sorted(per_env_resource)
+        envs_field = None if set(envs_present) == set(declared) else envs_present
+        merged.append(
+            MergedResource(
+                kind=kind,
+                canonical_name=name,
+                gam_ids=gam_ids,
+                payload=first_norm,
+                envs=envs_field,
+            )
+        )
+    return merged
 
 # Maps each managed kind to the on-disk directories that may hold its
 # imported YAMLs. NativeStyle only lives under ``native-styles/``;

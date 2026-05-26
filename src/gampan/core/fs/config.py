@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
 
+import structlog
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-_log = logging.getLogger(__name__)
+_log = structlog.get_logger(__name__)
 
 
 class Environment(BaseModel):
@@ -33,6 +33,7 @@ class HookConfig(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
+    # Fallback path used for any subcommand without its own block (spec §5.1 / §6.2).
     path: str | None = None
     transform: HookSubconfig | None = None
     reverse_transform: HookSubconfig | None = Field(default=None, alias="reverse-transform")
@@ -66,7 +67,7 @@ class Config(BaseModel):
     def _warn_on_legacy_env(self) -> Config:
         if self.env is not None:
             _log.warning(
-                "the `env:` field is removed in v1.x; "
-                "move it to a comment or use `environments:`"
+                "the `env:` field is deprecated in v1.x and ignored; "
+                "declare `environments:` instead"
             )
         return self

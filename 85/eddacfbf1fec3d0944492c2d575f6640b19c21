@@ -1,0 +1,41 @@
+docs/plans/2026-05-26-multi-env-management.md
+  cd7d63cce1e47c6b 1-2012
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "85eddacfbf1fec3d0944492c2d575f6640b19c21",
+  "prompts": {
+    "cd7d63cce1e47c6b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a44eea98-dab0-49c6-a823-11ddb2711580",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "superpowers:brainstorming",
+          "ts": "2026-05-26T02:20:28.797Z"
+        },
+        {
+          "id": "cmux-markdown",
+          "ts": "2026-05-26T03:55:00.888Z"
+        },
+        {
+          "id": "superpowers:writing-plans",
+          "ts": "2026-05-26T08:54:51.108Z"
+        }
+      ],
+      "tool_counts": {
+        "Skill": 3,
+        "Bash": 57,
+        "Read": 29,
+        "AskUserQuestion": 1,
+        "Write": 2,
+        "Edit": 49
+      },
+      "total_additions": 2012,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

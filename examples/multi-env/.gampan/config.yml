@@ -1,0 +1,4 @@
+network_code: "21700000000"
+environments:
+  dev: {}
+  prod: {}

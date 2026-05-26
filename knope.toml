@@ -29,8 +29,14 @@ name = "release"
 type = "PrepareRelease"
 [[workflows.steps]]
 type = "Command"
-# Explicit staging: avoid sweeping unrelated tracked edits into the release commit.
-command = "git add pyproject.toml CHANGELOG.md .changeset && git commit -m \"chore: prepare release $version\""
+# knope's `Command` step is split via shell-words (no real shell), so `&&`
+# cannot chain — every token would land as an arg to `git add`. Stage and
+# commit as separate steps to keep explicit staging without sweeping
+# unrelated tracked edits.
+command = "git add pyproject.toml CHANGELOG.md .changeset"
+[[workflows.steps]]
+type = "Command"
+command = "git commit -m \"chore: prepare release $version\""
 [[workflows.steps]]
 type = "Command"
 command = "git push origin HEAD"

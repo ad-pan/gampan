@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,9 +10,8 @@ from typing import Any
 
 import typer
 from ruamel.yaml import YAML
-from ruamel.yaml.comments import CommentedMap
 
-from gampan.cli._envs import V1_DEFAULT_ENV, resolve_multi_envs
+from gampan.cli._envs import resolve_multi_envs
 from gampan.cli.plan import _load_config, build_clients
 from gampan.core.engine.executor import stamp_gam_id_into_yaml
 from gampan.core.fs.loader import CONVENTION_DIRS
@@ -21,8 +21,6 @@ from gampan.core.hooks.discover import resolve_hook_path
 from gampan.core.hooks.invoke import invoke_hook
 from gampan.core.state.schema import EnvironmentSlice, ResourceEntry
 from gampan.core.state.store import StateStore
-from gampan.gam.models.creative_template import CreativeTemplate
-from gampan.gam.models.native_style import NativeStyle
 
 
 @dataclass
@@ -219,7 +217,7 @@ def _run_multi_env_import(
     *,
     root: Path,
     cfg: Any,
-    clients: dict[str, Any],
+    clients: Mapping[str, Any],
     kinds: list[str],
     target_envs: list[str],
     include_archived: bool,
@@ -243,7 +241,8 @@ def _run_multi_env_import(
                 d["name"] = r.name
                 d["gam_id"] = str(gam_id)
                 env_resources.append(d)
-                model_by_canonical[(kind, r.name)] = r  # last-write-wins; bodies are equal post-reconcile
+                # last-write-wins; bodies are equal post-reconcile
+                model_by_canonical[(kind, r.name)] = r
 
         # 2. reverse-transform hook (if present)
         hook_path = resolve_hook_path(root, cfg.hook, "reverse-transform")
@@ -253,7 +252,9 @@ def _run_multi_env_import(
             config={"network_code": cfg.network_code, "vars": env_vars},
             resources=env_resources,
         )
-        out = invoke_hook(hook_path=hook_path, subcommand="reverse-transform", payload=ti.to_payload())
+        out = invoke_hook(
+            hook_path=hook_path, subcommand="reverse-transform", payload=ti.to_payload()
+        )
         canonical = TransformOutput.from_payload(out).resources
 
         # If the hook renamed any resources, also re-key model_by_canonical so

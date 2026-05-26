@@ -1,4 +1,4 @@
-from gampan.core.identity.resolve import resolve_identity, ResolvedResource
+from gampan.core.identity.resolve import ResolvedResource, resolve_identity
 
 
 def test_dict_form_returns_env_gam_id() -> None:

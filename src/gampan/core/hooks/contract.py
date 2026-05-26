@@ -26,7 +26,7 @@ class TransformOutput:
     resources: list[dict[str, Any]]
 
     @classmethod
-    def from_payload(cls, payload: dict[str, Any]) -> "TransformOutput":
+    def from_payload(cls, payload: dict[str, Any]) -> TransformOutput:
         return cls(resources=list(payload.get("resources", [])))
 
 

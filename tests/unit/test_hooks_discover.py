@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from gampan.core.fs.config import HookConfig, HookSubconfig
-from gampan.core.hooks.discover import HookNotFound, HookPathError, resolve_hook_path
+from gampan.core.hooks.discover import HookPathError, resolve_hook_path
 
 
 def _make_exec(p: Path) -> None:
@@ -15,12 +15,14 @@ def _make_exec(p: Path) -> None:
 
 def test_default_location_file(tmp_path: Path) -> None:
     _make_exec(tmp_path / ".gampan" / "hooks")
-    assert resolve_hook_path(tmp_path, hook=None, subcommand="transform") == tmp_path / ".gampan" / "hooks"
+    expected = tmp_path / ".gampan" / "hooks"
+    assert resolve_hook_path(tmp_path, hook=None, subcommand="transform") == expected
 
 
 def test_default_location_py_alternative(tmp_path: Path) -> None:
     _make_exec(tmp_path / ".gampan" / "hooks.py")
-    assert resolve_hook_path(tmp_path, hook=None, subcommand="transform") == tmp_path / ".gampan" / "hooks.py"
+    expected = tmp_path / ".gampan" / "hooks.py"
+    assert resolve_hook_path(tmp_path, hook=None, subcommand="transform") == expected
 
 
 def test_default_ambiguous_raises(tmp_path: Path) -> None:

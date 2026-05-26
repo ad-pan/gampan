@@ -5,6 +5,9 @@ on:
     - cron: "0 18 * * *"  # 18:00 UTC daily (03:00 KST)
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   e2e:
     runs-on: ubuntu-latest

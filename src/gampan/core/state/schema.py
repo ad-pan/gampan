@@ -13,6 +13,9 @@ class ResourceEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     gam_id: str
+    # v2-only fields; ``None`` on v1 entries that pre-date the env-nested layout.
+    kind: str | None = None
+    name_hint: str | None = None
     checksum_local: str
     checksum_remote: str
     last_modified_remote: datetime | None = None
@@ -28,6 +31,16 @@ class ResourceEntry(BaseModel):
     drift_acknowledged: bool = True
 
 
+class EnvironmentSlice(BaseModel):
+    """Per-environment slice of state (v2)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    last_apply_at: datetime | None = None
+    last_apply_tool_version: str | None = None
+    resources: dict[str, ResourceEntry] = Field(default_factory=dict)
+
+
 class State(BaseModel):
     """The complete `.gampan/state.json` document."""
 
@@ -35,6 +48,12 @@ class State(BaseModel):
 
     schema_version: int = 1
     network_code: str
+
+    # v1 fields (still present so v1 files load unchanged).
     last_apply_at: datetime | None = None
     last_apply_tool_version: str | None = None
     resources: dict[str, ResourceEntry] = Field(default_factory=dict)
+
+    # v2 field — env-nested, gam_id-keyed entries. Migration logic lives in
+    # the state store (Task 3); the schema only declares the shape.
+    environments: dict[str, EnvironmentSlice] = Field(default_factory=dict)

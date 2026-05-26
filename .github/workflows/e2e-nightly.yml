@@ -8,13 +8,9 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    # Skip gracefully on forks where secrets are absent.
-    # GitHub evaluates secrets in `if:` expressions as empty string when missing.
-    if: ${{ secrets.GAMPAN_OAUTH_CLIENT_ID != '' }}
-    env:
-      GAMPAN_OAUTH_CLIENT_ID: ${{ secrets.GAMPAN_OAUTH_CLIENT_ID }}
-      GAMPAN_OAUTH_CLIENT_SECRET: ${{ secrets.GAMPAN_OAUTH_CLIENT_SECRET }}
-      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+    # `secrets` is not a valid context in job-level `if`; gate on repo
+    # identity instead so forks skip and PRs from the same repo pass.
+    if: github.repository == 'ad-pan/gampan'
     steps:
       - uses: actions/checkout@v6
       - uses: jdx/mise-action@v4
@@ -22,10 +18,18 @@ jobs:
           version: latest
       - run: mise run deps
       - name: Write service-account credentials
-        run: echo '${{ secrets.GAMPAN_E2E_SA_JSON }}' > "$GOOGLE_APPLICATION_CREDENTIALS"
-      - name: Run e2e integration tests against real GAM test network
-        run: uv run pytest tests/integration -v -m e2e
         env:
-          # VCR_RECORD unset → "none" (playback); cassettes present = offline pass,
-          # cassettes absent = tests skip.  Set VCR_RECORD=once to re-record.
+          SA_JSON: ${{ secrets.GAMPAN_E2E_SA_JSON }}
+        run: |
+          path="${RUNNER_TEMP}/sa.json"
+          printf '%s' "$SA_JSON" > "$path"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$path" >> "$GITHUB_ENV"
+      - name: Run e2e integration tests against real GAM test network
+        env:
+          GAMPAN_OAUTH_CLIENT_ID: ${{ secrets.GAMPAN_OAUTH_CLIENT_ID }}
+          GAMPAN_OAUTH_CLIENT_SECRET: ${{ secrets.GAMPAN_OAUTH_CLIENT_SECRET }}
+          # VCR_RECORD unset → "none" (playback); cassettes present = offline
+          # pass, cassettes absent = tests skip.  Set VCR_RECORD=once to
+          # re-record.
           GAMPAN_E2E_NETWORK_CODE: ${{ secrets.GAMPAN_E2E_NETWORK_CODE }}
+        run: uv run pytest tests/integration -v -m e2e

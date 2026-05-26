@@ -30,6 +30,7 @@ def execute_plan(
     tool_version: str,
     root: Path | None = None,
     initial_state: State | None = None,
+    env: str = "default",
 ) -> State:
     """Run *plan* against *client_by_kind* and persist progress.
 
@@ -39,6 +40,10 @@ def execute_plan(
 
     Pass ``initial_state`` to skip the otherwise-mandatory ``store.load()``
     when the caller already has a fresh snapshot.
+
+    ``env`` is recorded into the YAML ``_gam_ids`` block on CREATE actions.
+    Defaults to ``"default"`` to preserve v1 single-env behaviour; multi-env
+    callers pass the resolved target env (per `--env`).
     """
     state = initial_state if initial_state is not None else store.load()
     state.last_apply_tool_version = tool_version
@@ -62,10 +67,7 @@ def execute_plan(
                 state.resources.pop(change.key, None)
                 state.resources[new_key] = _entry(gam_id, change.desired)
                 if root is not None and change.yaml_path is not None:
-                    # ``env`` defaults to "default" until Task 13 plumbs the
-                    # real CLI flag through; single-env apply paths still
-                    # land under a single, predictable key.
-                    _write_gam_id_back(root / change.yaml_path, gam_id, env="default")
+                    _write_gam_id_back(root / change.yaml_path, gam_id, env=env)
             elif change.action == Action.UPDATE:
                 assert change.desired is not None and change.gam_id is not None
                 client.update(change.gam_id, change.desired)

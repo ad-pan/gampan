@@ -253,6 +253,7 @@ def run(
             tool_version=f"gampan/{__version__}",
             root=root,
             initial_state=state,
+            env=target_env,
         )
         # ``_entry()`` already acks keys the executor CREATE/UPDATE'd.
         # Catch the leftover keys that drifted but were untouched by the

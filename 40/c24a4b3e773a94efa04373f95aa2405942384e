@@ -1,0 +1,52 @@
+tests/unit/test_hooks_contract.py
+  cd7d63cce1e47c6b 1-49
+src/gampan/core/hooks/contract.py
+  cd7d63cce1e47c6b 1-55
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "40c24a4b3e773a94efa04373f95aa2405942384e",
+  "prompts": {
+    "cd7d63cce1e47c6b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a44eea98-dab0-49c6-a823-11ddb2711580",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "superpowers:brainstorming",
+          "ts": "2026-05-26T02:20:28.797Z"
+        },
+        {
+          "id": "cmux-markdown",
+          "ts": "2026-05-26T03:55:00.888Z"
+        },
+        {
+          "id": "superpowers:writing-plans",
+          "ts": "2026-05-26T08:54:51.108Z"
+        },
+        {
+          "id": "superpowers:subagent-driven-development",
+          "ts": "2026-05-26T09:05:42.959Z"
+        }
+      ],
+      "tool_counts": {
+        "Skill": 4,
+        "Bash": 66,
+        "Read": 32,
+        "AskUserQuestion": 1,
+        "Write": 2,
+        "Edit": 49,
+        "ToolSearch": 1,
+        "TaskCreate": 16,
+        "TaskList": 1,
+        "TaskUpdate": 19,
+        "Agent": 20
+      },
+      "total_additions": 104,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

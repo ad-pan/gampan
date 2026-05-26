@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
 
 from gampan.core.engine.diff import Action
 from gampan.core.engine.planner import Plan
@@ -61,7 +62,10 @@ def execute_plan(
                 state.resources.pop(change.key, None)
                 state.resources[new_key] = _entry(gam_id, change.desired)
                 if root is not None and change.yaml_path is not None:
-                    _write_gam_id_back(root / change.yaml_path, gam_id)
+                    # ``env`` defaults to "default" until Task 13 plumbs the
+                    # real CLI flag through; single-env apply paths still
+                    # land under a single, predictable key.
+                    _write_gam_id_back(root / change.yaml_path, gam_id, env="default")
             elif change.action == Action.UPDATE:
                 assert change.desired is not None and change.gam_id is not None
                 client.update(change.gam_id, change.desired)
@@ -103,18 +107,43 @@ def _entry(gam_id: str, resource: Resource) -> ResourceEntry:
     )
 
 
-def _write_gam_id_back(yaml_path: Path, gam_id: str) -> None:
-    """Insert ``_gam_id: '<id>'`` immediately after ``kind:`` in ``yaml_path``.
+def _write_gam_id_back(yaml_path: Path, gam_id: str, env: str) -> None:
+    """Stamp the GAM-issued id into ``yaml_path`` under ``_gam_ids[env]``.
 
-    Uses the shared round-trip loader so comments, ordering, and the
-    ``!file`` reference style survive. A no-op when ``_gam_id`` is already
-    present (e.g. a partially-applied CREATE that we are retrying).
+    Three cases, all preserving comments / ordering / ``!file`` refs via
+    the shared round-trip loader:
+
+    * No identity field yet → insert a fresh ``_gam_ids: {env: id}`` block
+      immediately after ``kind:``.
+    * Existing ``_gam_ids`` dict → set ``_gam_ids[env] = id`` in place,
+      keeping sibling entries untouched.
+    * Legacy scalar ``_gam_id`` (v1 form) → delete it and write the new
+      dict in the same position; this is the transparent on-write
+      migration path so v1 → v1.x doesn't require a separate sweep.
     """
     data = _RT_YAML.load(yaml_path.read_text(encoding="utf-8"))
-    if data is None or "_gam_id" in data:
+    if data is None:
         return
-    keys = list(data.keys())
-    insert_at = (keys.index("kind") + 1) if "kind" in keys else 0
-    data.insert(insert_at, "_gam_id", str(gam_id))
+
+    existing_dict = data.get("_gam_ids") if "_gam_ids" in data else None
+    if isinstance(existing_dict, dict):
+        existing_dict[env] = str(gam_id)
+    else:
+        if "_gam_id" in data:
+            insert_at = list(data.keys()).index("_gam_id")
+            del data["_gam_id"]
+        else:
+            keys = list(data.keys())
+            insert_at = (keys.index("kind") + 1) if "kind" in keys else 0
+        new_block = CommentedMap()
+        new_block[env] = str(gam_id)
+        data.insert(insert_at, "_gam_ids", new_block)
+
     with yaml_path.open("w", encoding="utf-8") as f:
         _RT_YAML.dump(data, f)
+
+
+# Public alias for tests and external consumption. Keeps the original
+# private name in the executor's hot path (minimising churn) while
+# exposing a stable, descriptive entry point for the helper.
+stamp_gam_id_into_yaml = _write_gam_id_back

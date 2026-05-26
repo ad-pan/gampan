@@ -69,8 +69,9 @@ def test_create_persists_state(tmp_path: Path) -> None:
 
 def test_create_writes_gam_id_back_into_yaml(tmp_path: Path) -> None:
     """When ``root`` is supplied and the change carries a ``yaml_path``,
-    CREATE stamps ``_gam_id`` into the source file so subsequent imports
-    recognise the resource by id."""
+    CREATE stamps ``_gam_ids[env]`` into the source file so subsequent
+    imports recognise the resource by id. Single-env apply paths currently
+    write under the ``default`` env until Task 13 plumbs ``--env`` through."""
     from gampan.core.engine.diff import Action, Change
     from gampan.core.engine.planner import Plan
 
@@ -108,12 +109,15 @@ def test_create_writes_gam_id_back_into_yaml(tmp_path: Path) -> None:
     )
 
     body = yaml_file.read_text(encoding="utf-8")
-    assert "_gam_id: '101'" in body
-    # ``_gam_id`` should sit right after ``kind:`` so the file stays
+    # v1.x writes the env-keyed dict; the legacy scalar form is gone.
+    assert "_gam_ids:" in body
+    assert "default: '101'" in body
+    # ``_gam_ids`` should sit right after ``kind:`` so the file stays
     # readable and matches what ``gampan import`` would have written.
     lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
     assert lines[0] == "kind: NativeStyle"
-    assert lines[1] == "_gam_id: '101'"
+    assert lines[1] == "_gam_ids:"
+    assert lines[2] == "default: '101'"
 
 
 def test_delete_skips_rpc_when_remote_already_archived(tmp_path: Path) -> None:

@@ -9,6 +9,7 @@ from typing import Any, Literal
 import typer
 
 from gampan import __version__
+from gampan.cli._envs import resolve_single_env
 from gampan.cli._render import render_plan
 from gampan.cli.plan import (
     _load_config,
@@ -120,19 +121,29 @@ def run(
             "the apply continues."
         ),
     ),
+    env: str | None = typer.Option(
+        None,
+        "-e",
+        "--env",
+        help=(
+            "Target environment (must be a key under `environments:` in "
+            ".gampan/config.yml). Required when environments are declared; "
+            "ignored in v1 single-env mode. apply intentionally has no "
+            "--all-envs flag — multi-env apply is out of scope for v1.x "
+            "(blast-radius safety)."
+        ),
+    ),
 ) -> None:
     """Apply pending changes to Google Ad Manager."""
     root = Path.cwd()
     cfg = _load_config(root)
+    target_env = resolve_single_env(cfg, env)
     clients = build_clients(cfg.network_code)
     effective_include_archived = (
         cfg.include_archived if include_archived is None else include_archived
     )
 
-    # Task 13 will plumb the real --env value; until then every caller uses
-    # the placeholder "default" env so identity resolution + transform hooks
-    # still wire through correctly.
-    desired, desired_yaml_paths = _load_desired(root, cfg, env="default")
+    desired, desired_yaml_paths = _load_desired(root, cfg, env=target_env)
     # Mirror ``plan``'s ``managed_kinds`` scoping — otherwise apply would
     # query every client kind, fetching resources plan never looked at and
     # silently widening the drift pre-check window.
@@ -207,14 +218,13 @@ def run(
     # last word so org-wide rules (e.g. "no DELETE in prod", "size budget")
     # can stop the mutation even when a human said yes. Skipped when there
     # is nothing actionable to gate.
-    env = "default"
     env_vars: dict[str, Any] = {}
-    if env in cfg.environments:
-        env_vars = dict(cfg.environments[env].vars)
+    if target_env in cfg.environments:
+        env_vars = dict(cfg.environments[target_env].vars)
     hook_path = resolve_hook_path(root, cfg.hook, "before-apply")
     if hook_path is not None:
         bai = BeforeApplyInput(
-            environment=env,
+            environment=target_env,
             config={"network_code": cfg.network_code, "vars": env_vars},
             plan=_build_before_apply_actions(plan),
         )

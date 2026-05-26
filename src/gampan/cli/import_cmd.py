@@ -8,6 +8,7 @@ from pathlib import Path
 import typer
 from ruamel.yaml import YAML
 
+from gampan.cli._envs import resolve_multi_envs
 from gampan.cli.plan import _load_config, build_clients
 from gampan.core.fs.loader import CONVENTION_DIRS
 from gampan.core.fs.writer import slugify, write_resource
@@ -39,6 +40,15 @@ def run(
             "for this run; falls back to the config value when omitted."
         ),
     ),
+    envs: str | None = typer.Option(
+        None,
+        "--envs",
+        help=(
+            "Comma-separated env list to import into (e.g. `dev,prod`). Required "
+            "when environments are declared in .gampan/config.yml; ignored in v1 "
+            "single-env mode. Each name must be a key under `environments:`."
+        ),
+    ),
 ) -> None:
     """Pull GAM resources into YAML + populate state.json."""
     root = Path.cwd()
@@ -47,6 +57,14 @@ def run(
     except FileNotFoundError as e:
         typer.echo("Not a gampan repo (missing .gampan/config.yml). Run `gampan init` first.")
         raise typer.Exit(code=1) from e
+
+    # Task 13 parses and validates --envs; the actual multi-env
+    # reconciliation (per-env _gam_ids write-back, reverse-transform) lands
+    # in Task 14. Until then, ``target_envs`` only affects flag validation:
+    # v1 single-env import still runs unchanged when the list is the
+    # placeholder ``[default]``.
+    target_envs = resolve_multi_envs(cfg, envs)
+    assert target_envs, "resolve_multi_envs guarantees a non-empty list"
 
     effective_include_archived = (
         cfg.include_archived if include_archived is None else include_archived

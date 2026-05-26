@@ -6,6 +6,7 @@ from pathlib import Path
 
 import typer
 
+from gampan.cli._envs import resolve_single_env
 from gampan.cli.plan import _load_config, build_clients
 from gampan.core.state.store import StateStore
 
@@ -20,10 +21,27 @@ def run(
             "the config value when omitted."
         ),
     ),
+    env: str | None = typer.Option(
+        None,
+        "-e",
+        "--env",
+        help=(
+            "Target environment (must be a key under `environments:` in "
+            ".gampan/config.yml). Required when environments are declared; "
+            "ignored in v1 single-env mode."
+        ),
+    ),
 ) -> None:
     """Re-sync state.json remote checksums from the live GAM API."""
     root = Path.cwd()
     cfg = _load_config(root)
+    # Task 13 plumbs --env so the CLI surface is consistent across plan /
+    # apply / refresh, but the v1→v2 state migration is *additive* — Task 3
+    # still populates top-level ``state.resources`` for any env we touched
+    # — so refresh keeps using that flat view regardless of the requested
+    # env. A future cleanup task will narrow this to ``state.environments[env]``
+    # once we drop the legacy top-level slot.
+    _ = resolve_single_env(cfg, env)
     effective_include_archived = (
         cfg.include_archived if include_archived is None else include_archived
     )

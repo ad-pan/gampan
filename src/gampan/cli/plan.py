@@ -11,6 +11,7 @@ from typing import Any
 import typer
 from ruamel.yaml import YAML
 
+from gampan.cli._envs import resolve_plan_targets
 from gampan.cli._render import render_plan, render_summary
 from gampan.core.engine.diff import (
     NEW_KEY_MARKER,
@@ -70,52 +71,79 @@ def run(
             "value when omitted."
         ),
     ),
+    env: str | None = typer.Option(
+        None,
+        "-e",
+        "--env",
+        help=(
+            "Target environment (must be a key under `environments:` in "
+            ".gampan/config.yml). Required when environments are declared; "
+            "ignored in v1 single-env mode."
+        ),
+    ),
+    all_envs: bool = typer.Option(
+        False,
+        "--all-envs",
+        help=(
+            "Plan every declared environment in turn. Mutually exclusive "
+            "with --env. Ignored in v1 single-env mode."
+        ),
+    ),
 ) -> None:
     """Show pending changes between local YAML and the remote GAM state."""
     root = Path.cwd()
     cfg = _load_config(root)
+    targets = resolve_plan_targets(cfg, env, all_envs=all_envs)
     clients = build_clients(cfg.network_code)
     effective_include_archived = (
         cfg.include_archived if include_archived is None else include_archived
     )
 
-    # Task 13 will plumb the real --env value; until then every caller uses
-    # the placeholder "default" env so identity resolution + transform hooks
-    # still wire through correctly.
-    desired, desired_yaml_paths = _load_desired(root, cfg, env="default")
-    # Only query kinds we actually manage (kinds present in desired YAMLs OR
-    # in state.json from a prior import). Skipping unmanaged kinds avoids
-    # unnecessary SOAP/REST traffic and keeps `gampan plan` cassette-friendly.
-    managed_kinds = _managed_kinds(root, desired)
-    current = _load_current(
-        clients,
-        kinds=managed_kinds,
-        include_archived=effective_include_archived,
-    )
-    try:
-        plan = build_plan(
-            desired=desired,
-            current=current,
-            strict_missing_remote=not effective_include_archived,
-            desired_yaml_paths=desired_yaml_paths,
+    any_pending = False
+    multi = len(targets) > 1
+
+    # Build a single JSON envelope across all targets when --json is on so
+    # downstream consumers get one parse instead of one-per-env.
+    json_envelopes: list[dict[str, Any]] = []
+
+    for target_env in targets:
+        if multi and not as_json:
+            typer.echo(f"=== env: {target_env} ===")
+
+        desired, desired_yaml_paths = _load_desired(root, cfg, env=target_env)
+        # Only query kinds we actually manage (kinds present in desired YAMLs OR
+        # in state.json from a prior import). Skipping unmanaged kinds avoids
+        # unnecessary SOAP/REST traffic and keeps `gampan plan` cassette-friendly.
+        managed_kinds = _managed_kinds(root, desired)
+        current = _load_current(
+            clients,
+            kinds=managed_kinds,
+            include_archived=effective_include_archived,
         )
-    except MissingRemoteError as e:
-        typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(code=1) from e
+        try:
+            plan = build_plan(
+                desired=desired,
+                current=current,
+                strict_missing_remote=not effective_include_archived,
+                desired_yaml_paths=desired_yaml_paths,
+            )
+        except MissingRemoteError as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(code=1) from e
 
-    # v0.1 backend constraint: CreativeTemplate write verbs are not exposed.
-    # Render the plan so the operator can see the would-be diff, then refuse.
-    try:
-        validate_v0_1_constraints(plan.changes)
-    except CreativeTemplateReadOnlyError as e:
-        render_plan(plan, show_unchanged=show_unchanged)
-        typer.echo(f"\nError: {e}", err=True)
-        raise typer.Exit(code=1) from e
+        # v0.1 backend constraint: CreativeTemplate write verbs are not exposed.
+        # Render the plan so the operator can see the would-be diff, then refuse.
+        try:
+            validate_v0_1_constraints(plan.changes)
+        except CreativeTemplateReadOnlyError as e:
+            render_plan(plan, show_unchanged=show_unchanged)
+            typer.echo(f"\nError: {e}", err=True)
+            raise typer.Exit(code=1) from e
 
-    if as_json:
-        typer.echo(
-            json.dumps(
+        if as_json:
+            json_envelopes.append(
                 {
+                    "env": target_env,
                     "summary": {a.value: n for a, n in plan.summary().items()},
                     "changes": [
                         {
@@ -128,15 +156,30 @@ def run(
                         }
                         for c in plan.changes
                     ],
-                },
-                indent=2,
+                }
             )
-        )
-    else:
-        render_plan(plan, show_unchanged=show_unchanged)
-        render_summary(plan)
+        else:
+            render_plan(plan, show_unchanged=show_unchanged)
+            render_summary(plan)
 
-    if detailed_exitcode and plan.has_pending:
+        if plan.has_pending:
+            any_pending = True
+
+    if as_json:
+        # Single-env mode: preserve the v1 flat shape so existing JSON
+        # consumers keep working. Multi-env mode emits a list keyed by env.
+        if multi:
+            typer.echo(json.dumps({"envs": json_envelopes}, indent=2))
+        else:
+            envelope = json_envelopes[0]
+            typer.echo(
+                json.dumps(
+                    {"summary": envelope["summary"], "changes": envelope["changes"]},
+                    indent=2,
+                )
+            )
+
+    if detailed_exitcode and any_pending:
         raise typer.Exit(code=2)
 
 

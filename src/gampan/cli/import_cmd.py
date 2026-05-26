@@ -163,12 +163,23 @@ def run(
     state = store.load_or_empty(network_code=cfg.network_code)
 
     kinds = _resolve_kinds(resource)
+
+    if cfg.environments:
+        _run_multi_env_import(
+            root=root,
+            cfg=cfg,
+            clients=clients,
+            kinds=kinds,
+            target_envs=target_envs,
+            include_archived=effective_include_archived,
+            store=store,
+            state=state,
+        )
+        return
+
+    # v1 single-env path — unchanged.
     seen_slugs: set[str] = set()
     disambiguated: list[tuple[str, str]] = []
-
-    # Pre-scan only the directories the active --resource filter cares
-    # about; a NativeStyle-only import does not need to parse the
-    # creative-templates dir.
     existing_yaml_by_gam_id = _collect_existing_yaml_by_gam_id(root, kinds)
     orphans_removed: list[Path] = []
 
@@ -202,6 +213,141 @@ def run(
         typer.echo("\nRemoved orphan YAML(s) after rename (same _gam_id, new slug):")
         for p in orphans_removed:
             typer.echo(f"  - {p.relative_to(root)}")
+
+
+def _run_multi_env_import(
+    *,
+    root: Path,
+    cfg: Any,
+    clients: dict[str, Any],
+    kinds: list[str],
+    target_envs: list[str],
+    include_archived: bool,
+    store: StateStore,
+    state: Any,
+) -> None:
+    """Multi-env import: fetch per-env, reverse-transform, reconcile, write."""
+    # 1. Fetch per env per kind; keep both the raw model (for YAML write)
+    #    and a serialized dict (for reconcile content comparison).
+    per_env_dicts: dict[str, list[dict[str, Any]]] = {env: [] for env in target_envs}
+    # (env, kind, canonical_name) → original Resource model (any env's copy works
+    # since reconcile guarantees identical content modulo gam_id).
+    model_by_canonical: dict[tuple[str, str], Any] = {}
+
+    for env in target_envs:
+        env_resources: list[dict[str, Any]] = []
+        for kind in kinds:
+            for gam_id, r in clients[kind].list(include_archived=include_archived):
+                d = r.model_dump(mode="python", exclude_none=False)
+                d["kind"] = kind
+                d["name"] = r.name
+                d["gam_id"] = str(gam_id)
+                env_resources.append(d)
+                model_by_canonical[(kind, r.name)] = r  # last-write-wins; bodies are equal post-reconcile
+
+        # 2. reverse-transform hook (if present)
+        hook_path = resolve_hook_path(root, cfg.hook, "reverse-transform")
+        env_vars = cfg.environments[env].vars if env in cfg.environments else {}
+        ti = TransformInput(
+            environment=env,
+            config={"network_code": cfg.network_code, "vars": env_vars},
+            resources=env_resources,
+        )
+        out = invoke_hook(hook_path=hook_path, subcommand="reverse-transform", payload=ti.to_payload())
+        canonical = TransformOutput.from_payload(out).resources
+
+        # If the hook renamed any resources, also re-key model_by_canonical so
+        # the later YAML write finds the model under its canonical name.
+        for orig, post in zip(env_resources, canonical, strict=False):
+            new_name = post.get("name")
+            kind_o = orig["kind"]
+            if new_name and new_name != orig["name"]:
+                m = model_by_canonical.pop((kind_o, orig["name"]), None)
+                if m is not None:
+                    model_by_canonical[(kind_o, new_name)] = m
+
+        per_env_dicts[env] = canonical
+
+    # 3. Reconcile across envs.
+    try:
+        merged = reconcile_across_envs(per_env_dicts, declared_envs=list(cfg.environments))
+    except ImportConflict as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(code=1) from e
+
+    # 4. Write each canonical YAML and per-env state.
+    seen_slugs: set[str] = set()
+    for mr in merged:
+        model = model_by_canonical.get((mr.kind, mr.canonical_name))
+        if model is None:
+            # Should not happen; defense in depth.
+            typer.echo(f"Error: no source model for {mr.kind}:{mr.canonical_name}", err=True)
+            raise typer.Exit(code=1)
+        # Ensure model name matches canonical (reverse-transform may have renamed).
+        if model.name != mr.canonical_name:
+            model = model.model_copy(update={"name": mr.canonical_name})
+
+        # Scaffold YAML using any env's gam_id as the primary; we'll rewrite
+        # the identity block to the full dict immediately after.
+        primary_env, primary_gam_id = next(iter(mr.gam_ids.items()))
+        yaml_path, _ = write_resource(
+            root, model, gam_id=primary_gam_id, seen_slugs=seen_slugs
+        )
+
+        # Stamp every env's gam_id. Task 7's helper migrates the scalar
+        # `_gam_id` written by write_resource into the `_gam_ids` dict on
+        # the first stamp call.
+        for env, gid in mr.gam_ids.items():
+            stamp_gam_id_into_yaml(yaml_path, gam_id=gid, env=env)
+
+        if mr.envs is not None:
+            _stamp_envs_annotation(yaml_path, mr.envs)
+
+        typer.echo(f"  ✓ {yaml_path.relative_to(root)}")
+
+        # 5. Per-env state writes. Use additive v2 layout: populate
+        #    state.environments[env].resources[gam_id] keyed by gam_id.
+        cs = model.checksum()
+        for env, gid in mr.gam_ids.items():
+            slice_ = state.environments.setdefault(env, EnvironmentSlice())
+            slice_.resources[gid] = ResourceEntry(
+                gam_id=gid,
+                kind=mr.kind,
+                name_hint=mr.canonical_name,
+                checksum_local=cs,
+                checksum_remote=cs,
+                last_modified_remote=datetime.now(tz=UTC),
+            )
+
+    store.save(state)
+    n_resources = sum(len(s.resources) for s in state.environments.values())
+    typer.echo(
+        f"\nState: {n_resources} resources tracked in .gampan/state.json "
+        f"across {len(state.environments)} env(s)"
+    )
+
+
+def _stamp_envs_annotation(yaml_path: Path, envs: list[str]) -> None:
+    """Insert ``_envs: [...]`` line into the YAML right after ``_gam_ids:``.
+
+    Uses ruamel round-trip so comments and side-file references survive.
+    """
+    yaml_rt = YAML()
+    yaml_rt.default_flow_style = False
+    yaml_rt.width = 2**31 - 1
+    data = yaml_rt.load(yaml_path.read_text(encoding="utf-8"))
+    if data is None:
+        return
+    keys = list(data.keys())
+    if "_gam_ids" in keys:
+        insert_at = keys.index("_gam_ids") + 1
+    elif "kind" in keys:
+        insert_at = keys.index("kind") + 1
+    else:
+        insert_at = 0
+    data.insert(insert_at, "_envs", list(envs))
+    with yaml_path.open("w", encoding="utf-8") as f:
+        yaml_rt.dump(data, f)
 
 
 def _collect_existing_yaml_by_gam_id(root: Path, kinds: list[str]) -> dict[str, Path]:

@@ -5,10 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+import structlog
+
 from gampan.core.errors import SchemaError
 from gampan.core.fs.config import Config
 from gampan.core.fs.refs import make_yaml
 from gampan.core.fs.schema_validation import validate_resource
+
+_log = structlog.get_logger(__name__)
 
 # Per-kind config-key mapping used by the per_kind layout. Native formats are
 # CreativeTemplates with ``native_eligible=True``, not a distinct Kind, so they
@@ -40,13 +44,13 @@ def load_all(repo_root: Path, config: Config) -> list[dict[str, Any]]:
     deserialization happens downstream in `gam/models/`.
     """
     if config.sources is None:
-        return _load_convention(repo_root)
+        return _load_convention(repo_root, config)
     if isinstance(config.sources, list):
-        return _load_flat(repo_root, config.sources)
-    return _load_per_kind(repo_root, config.sources)
+        return _load_flat(repo_root, config.sources, config)
+    return _load_per_kind(repo_root, config.sources, config)
 
 
-def _load_convention(repo_root: Path) -> list[dict[str, Any]]:
+def _load_convention(repo_root: Path, config: Config) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for dirname in _CONVENTION_DIRS:
         for yaml_path in sorted((repo_root / dirname).glob("*.yaml")):
@@ -54,11 +58,14 @@ def _load_convention(repo_root: Path) -> list[dict[str, Any]]:
             if "kind" not in data:
                 raise SchemaError(f"{yaml_path}: missing `kind` field")
             validate_resource(data, repo_root)
+            _check_v1x_fields(data, yaml_path, config)
             out.append(data)
     return out
 
 
-def _load_flat(repo_root: Path, globs: list[str]) -> list[dict[str, Any]]:
+def _load_flat(
+    repo_root: Path, globs: list[str], config: Config
+) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for pattern in globs:
         for yaml_path in sorted(repo_root.glob(pattern)):
@@ -66,11 +73,14 @@ def _load_flat(repo_root: Path, globs: list[str]) -> list[dict[str, Any]]:
             if "kind" not in data:
                 raise SchemaError(f"{yaml_path}: missing `kind` field (flat layout requires it)")
             validate_resource(data, repo_root)
+            _check_v1x_fields(data, yaml_path, config)
             out.append(data)
     return out
 
 
-def _load_per_kind(repo_root: Path, mapping: dict[str, list[str]]) -> list[dict[str, Any]]:
+def _load_per_kind(
+    repo_root: Path, mapping: dict[str, list[str]], config: Config
+) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for kind, globs in mapping.items():
         for pattern in globs:
@@ -78,8 +88,41 @@ def _load_per_kind(repo_root: Path, mapping: dict[str, list[str]]) -> list[dict[
                 data = _read_yaml(yaml_path, repo_root)
                 data.setdefault("kind", _snake_to_pascal(kind))
                 validate_resource(data, repo_root)
+                _check_v1x_fields(data, yaml_path, config)
                 out.append(data)
     return out
+
+
+def _check_v1x_fields(data: dict[str, Any], yaml_path: Path, config: Config) -> None:
+    """v1.x multi-env checks on a single resource dict.
+
+    - Emit deprecation warning for scalar ``_gam_id`` (kept in-place; downstream
+      identity-resolve will rewrite to ``_gam_ids`` on the next apply).
+    - Validate that ``_gam_ids`` (when present) is a dict whose keys are all
+      declared under ``config.environments``. When ``environments`` is empty
+      (single-env / legacy mode) the dict shape is still required but key
+      membership is not checked.
+    """
+    if "_gam_id" in data:
+        _log.warning(
+            "scalar `_gam_id` is deprecated; will rewrite as `_gam_ids` on next apply",
+            yaml_path=str(yaml_path),
+        )
+
+    if "_gam_ids" in data:
+        gam_ids = data["_gam_ids"]
+        if not isinstance(gam_ids, dict):
+            raise SchemaError(
+                f"{yaml_path}: `_gam_ids` must be a mapping, "
+                f"got {type(gam_ids).__name__}"
+            )
+        if config.environments:
+            unknown = set(gam_ids) - set(config.environments)
+            if unknown:
+                raise SchemaError(
+                    f"{yaml_path}: `_gam_ids` references undeclared env(s): "
+                    f"{sorted(unknown)}"
+                )
 
 
 def _read_yaml(path: Path, repo_root: Path) -> dict[str, Any]:

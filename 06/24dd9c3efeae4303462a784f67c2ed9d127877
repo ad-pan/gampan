@@ -1,0 +1,37 @@
+docs/specs/2026-05-26-multi-env-management-design.md
+  cd7d63cce1e47c6b 1-834
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "0624dd9c3efeae4303462a784f67c2ed9d127877",
+  "prompts": {
+    "cd7d63cce1e47c6b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a44eea98-dab0-49c6-a823-11ddb2711580",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "superpowers:brainstorming",
+          "ts": "2026-05-26T02:20:28.797Z"
+        },
+        {
+          "id": "cmux-markdown",
+          "ts": "2026-05-26T03:55:00.888Z"
+        }
+      ],
+      "tool_counts": {
+        "Skill": 2,
+        "Bash": 53,
+        "Read": 25,
+        "AskUserQuestion": 1,
+        "Write": 1,
+        "Edit": 49
+      },
+      "total_additions": 31773,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
+from typing import Any, Literal
 
 import typer
 
@@ -16,15 +18,84 @@ from gampan.cli.plan import (
     build_clients,
 )
 from gampan.core.engine.diff import (
+    Action,
     CreativeTemplateReadOnlyError,
+    FieldDiff,
     MissingRemoteError,
     detect_remote_drift,
     validate_v0_1_constraints,
 )
 from gampan.core.engine.executor import execute_plan
-from gampan.core.engine.planner import build_plan
+from gampan.core.engine.planner import Plan, build_plan
+from gampan.core.hooks.contract import BeforeApplyInput, BeforeApplyPlanAction
+from gampan.core.hooks.discover import resolve_hook_path
+from gampan.core.hooks.invoke import HookCrash, HookRejected, invoke_hook
 from gampan.core.state.schema import State
 from gampan.core.state.store import StateStore
+
+# Resource fields whose values are large enough (HTML/CSS template bodies)
+# that shipping them verbatim through the hook envelope would balloon the
+# payload and leak sensitive snippet content. Hash these to a short digest
+# so the hook can still detect "this body changed" without seeing it.
+_BLOB_FIELD_NAMES = {"html", "css", "snippet", "htmlSnippet", "cssSnippet"}
+
+
+def _is_blob_path(path: str) -> bool:
+    """Whether the final segment of ``path`` is a known blob field."""
+    # path looks like "html" or "variables[2].default" — split on "." and "["
+    # and check the rightmost identifier.
+    tail = path.rsplit(".", 1)[-1]
+    tail = tail.split("[", 1)[0]
+    return tail in _BLOB_FIELD_NAMES
+
+
+def _hash_value(value: Any) -> str:
+    digest = hashlib.sha256(str(value).encode()).hexdigest()[:16]
+    return f"<sha256:{digest}>"
+
+
+def _diff_to_change_entry(diff: FieldDiff) -> dict[str, Any]:
+    if _is_blob_path(diff.path):
+        return {
+            "path": diff.path,
+            "before": _hash_value(diff.before) if diff.before is not None else None,
+            "after": _hash_value(diff.after) if diff.after is not None else None,
+        }
+    return {"path": diff.path, "before": diff.before, "after": diff.after}
+
+
+def _action_label(action: Action) -> Literal["create", "update", "delete"]:
+    mapping: dict[Action, Literal["create", "update", "delete"]] = {
+        Action.CREATE: "create",
+        Action.UPDATE: "update",
+        Action.DELETE: "delete",
+    }
+    return mapping[action]
+
+
+def _build_before_apply_actions(plan: Plan) -> list[BeforeApplyPlanAction]:
+    out: list[BeforeApplyPlanAction] = []
+    for change in plan.changes:
+        if change.action == Action.NO_CHANGE:
+            continue
+        kind = change.key.split(":", 1)[0]
+        # For DELETE, ``desired`` is None — fall back to the remote model's name.
+        # ``current`` is always populated on UPDATE/DELETE; ``desired`` on
+        # CREATE/UPDATE. At least one is set for any non-NO_CHANGE row.
+        name_source = change.desired if change.desired is not None else change.current
+        assert name_source is not None, f"change {change.key} has neither desired nor current"
+        name = name_source.name
+        out.append(
+            BeforeApplyPlanAction(
+                action=_action_label(change.action),
+                kind=kind,
+                name=name,
+                post_transform_name=name,
+                gam_id=change.gam_id,
+                changes=[_diff_to_change_entry(d) for d in change.diffs],
+            )
+        )
+    return out
 
 
 def run(
@@ -131,6 +202,38 @@ def run(
         if confirm.strip().lower() not in {"yes", "y"}:
             typer.echo("Aborted.")
             raise typer.Exit(code=3)
+
+    # Policy gate. The user already approved interactively; the hook gets the
+    # last word so org-wide rules (e.g. "no DELETE in prod", "size budget")
+    # can stop the mutation even when a human said yes. Skipped when there
+    # is nothing actionable to gate.
+    env = "default"
+    env_vars: dict[str, Any] = {}
+    if env in cfg.environments:
+        env_vars = dict(cfg.environments[env].vars)
+    hook_path = resolve_hook_path(root, cfg.hook, "before-apply")
+    if hook_path is not None:
+        bai = BeforeApplyInput(
+            environment=env,
+            config={"network_code": cfg.network_code, "vars": env_vars},
+            plan=_build_before_apply_actions(plan),
+        )
+        try:
+            invoke_hook(
+                hook_path=hook_path,
+                subcommand="before-apply",
+                payload=bai.to_payload(),
+            )
+        except HookRejected as rej:
+            typer.echo(
+                f"Apply rejected by before-apply hook: {rej.reason}", err=True
+            )
+            raise typer.Exit(code=3) from rej
+        except HookCrash as crash:
+            typer.echo(
+                f"Apply aborted: before-apply hook crashed: {crash}", err=True
+            )
+            raise typer.Exit(code=1) from crash
 
     try:
         final_state = execute_plan(

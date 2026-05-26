@@ -19,9 +19,14 @@ from gampan.core.engine.diff import (
     validate_v0_1_constraints,
 )
 from gampan.core.engine.planner import build_plan
+from gampan.core.env.filter import participates_in_env
 from gampan.core.fs.config import Config
 from gampan.core.fs.loader import load_all, validate_no_duplicates
 from gampan.core.fs.writer import slugify
+from gampan.core.hooks.contract import TransformInput, TransformOutput
+from gampan.core.hooks.discover import resolve_hook_path
+from gampan.core.hooks.invoke import invoke_hook
+from gampan.core.identity.resolve import resolve_identity
 from gampan.core.protocols import Client, Resource
 from gampan.gam.auth import resolve_credentials
 from gampan.gam.models.creative_template import CreativeTemplate
@@ -74,7 +79,10 @@ def run(
         cfg.include_archived if include_archived is None else include_archived
     )
 
-    desired, desired_yaml_paths = _load_desired(root, cfg)
+    # Task 13 will plumb the real --env value; until then every caller uses
+    # the placeholder "default" env so identity resolution + transform hooks
+    # still wire through correctly.
+    desired, desired_yaml_paths = _load_desired(root, cfg, env="default")
     # Only query kinds we actually manage (kinds present in desired YAMLs OR
     # in state.json from a prior import). Skipping unmanaged kinds avoids
     # unnecessary SOAP/REST traffic and keeps `gampan plan` cassette-friendly.
@@ -137,33 +145,76 @@ def _load_config(root: Path) -> Config:
     return Config.model_validate(yaml.load((root / ".gampan" / "config.yml").read_text()))
 
 
-def _load_desired(root: Path, cfg: Config) -> tuple[list[tuple[str, Resource]], dict[str, str]]:
-    """Load YAML resources and return ``(desired, yaml_paths)``.
+def _load_desired(
+    root: Path, cfg: Config, env: str
+) -> tuple[list[tuple[str, Resource]], dict[str, str]]:
+    """Load YAML resources for ``env`` and return ``(desired, yaml_paths)``.
 
-    ``desired`` is a list of ``(state_key, model)`` pairs; ``yaml_paths``
-    maps each state key to the repo-relative source file. State key is
-    ``{kind}:{gam_id}`` for imported YAMLs (those carrying a ``_gam_id``
-    field), or ``{kind}:NEW:{slug}-{hash8}`` for user-authored YAMLs that
-    have never been imported. The ``NEW:`` prefix ensures they always
-    appear as CREATE in the plan; the executor uses ``yaml_paths`` on
-    CREATE to stamp the newly-assigned ``_gam_id`` back into the source
-    file.
+    Pipeline:
+        1. Read every YAML via :func:`load_all` and reject duplicates.
+        2. For each item, resolve identity (``_gam_ids``/``_gam_id`` →
+           ``gam_id`` for ``env``) and filter out resources whose ``_envs``
+           does not include ``env``.
+        3. Hand the survivors' clean payloads to the user's ``transform``
+           hook (if configured) along with ``cfg.environments[env].vars``.
+        4. Pair surviving identities to transformed payloads positionally
+           (gampan v1.x requires the hook to preserve resource count).
+        5. Build Pydantic models and assign state keys
+           (``{kind}:{gam_id}`` for known ids, ``{kind}:NEW:{slug}-{hash8}``
+           otherwise).
     """
     raw = load_all(root, cfg)
     validate_no_duplicates(raw)
-    out: list[tuple[str, Resource]] = []
-    paths: dict[str, str] = {}
+
+    # Stage 1: identity resolve + env filter. Keep (resolved, source) pairs.
+    survivors: list[tuple[Any, str | None]] = []  # tuple[ResolvedResource, source]
     for item in raw:
         source = item.get("__source__")
-        item = {k: v for k, v in item.items() if not k.startswith("__")}
-        kind = item.pop("kind")
-        gam_id: str | None = item.pop("_gam_id", None)
+        cleaned = {k: v for k, v in item.items() if not k.startswith("__")}
+        resolved = resolve_identity(cleaned, env=env)
+        if not participates_in_env(resolved.envs, env):
+            continue
+        survivors.append((resolved, source))
+
+    # Stage 2: transform hook. Pass-through when no hook is configured.
+    env_vars: dict[str, Any] = {}
+    if env in cfg.environments:
+        env_vars = dict(cfg.environments[env].vars)
+    ti = TransformInput(
+        environment=env,
+        config={"network_code": cfg.network_code, "vars": env_vars},
+        resources=[r.payload for (r, _) in survivors],
+    )
+    hook_path = resolve_hook_path(root, cfg.hook, "transform")
+    out_payload = invoke_hook(
+        hook_path=hook_path, subcommand="transform", payload=ti.to_payload()
+    )
+    transformed = TransformOutput.from_payload(out_payload).resources
+
+    if len(transformed) != len(survivors):
+        raise ValueError(
+            f"transform hook returned {len(transformed)} resources from "
+            f"{len(survivors)}; gampan v1.x requires preservation "
+            f"(the hook must return the same number of resources in the same order)"
+        )
+
+    # Stage 3: pair, build models, assign state keys.
+    out: list[tuple[str, Resource]] = []
+    paths: dict[str, str] = {}
+    for (resolved, source), payload in zip(survivors, transformed, strict=True):
+        item_payload = dict(payload)
+        kind = item_payload.pop("kind")
+        # Strip any leaked managed metadata the hook may have re-emitted —
+        # state key comes from the pre-hook identity, not the payload.
+        for managed in ("_gam_id", "_gam_ids", "_envs"):
+            item_payload.pop(managed, None)
         if kind == "NativeStyle":
-            model: Resource = NativeStyle(**item)
+            model: Resource = NativeStyle(**item_payload)
         elif kind == "CreativeTemplate":
-            model = CreativeTemplate(**item)
+            model = CreativeTemplate(**item_payload)
         else:
             continue
+        gam_id = resolved.gam_id
         if gam_id:
             key = f"{kind}:{gam_id}"
         else:

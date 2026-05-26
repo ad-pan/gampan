@@ -58,7 +58,10 @@ def run(
         cfg.include_archived if include_archived is None else include_archived
     )
 
-    desired, desired_yaml_paths = _load_desired(root, cfg)
+    # Task 13 will plumb the real --env value; until then every caller uses
+    # the placeholder "default" env so identity resolution + transform hooks
+    # still wire through correctly.
+    desired, desired_yaml_paths = _load_desired(root, cfg, env="default")
     # Mirror ``plan``'s ``managed_kinds`` scoping — otherwise apply would
     # query every client kind, fetching resources plan never looked at and
     # silently widening the drift pre-check window.

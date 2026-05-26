@@ -21,10 +21,14 @@ def test_v1_state_loads_and_migrates_to_default_env(tmp_path: Path) -> None:
     state = store.load()
     # Migrated in memory:
     assert state.schema_version == 2
+    # Env slice populated with the migrated entry, keyed by gam_id.
     assert "default" in state.environments
     assert "943048" in state.environments["default"].resources
-    # Original top-level resources cleared after migration so the engine has one source of truth.
-    assert state.resources == {}
+    # v1 top-level fields are retained during the transitional period so
+    # unmigrated callers (refresh, executor) keep working until they're
+    # rewritten env-aware.
+    assert "NativeStyle:_gam_id:943048" in state.resources
+    assert state.resources["NativeStyle:_gam_id:943048"].gam_id == "943048"
 
 
 def test_v2_state_loads_unchanged(tmp_path: Path) -> None:

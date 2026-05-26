@@ -53,8 +53,9 @@ def _migrate_v1_to_v2(state: State) -> State:
         update={
             "schema_version": 2,
             "environments": {"default": default},
-            "resources": {},
-            "last_apply_at": None,
-            "last_apply_tool_version": None,
+            # v1 top-level fields are intentionally retained during the transitional
+            # period so unmigrated callers (refresh.py, executor.py, etc.) keep
+            # working. A later task will remove them once every consumer reads from
+            # `environments[<env>].resources` exclusively.
         }
     )

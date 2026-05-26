@@ -438,6 +438,12 @@ git add src/gampan/core/state/store.py tests/unit/test_state_v2_migration.py
 git commit -m "feat(state): auto-migrate v1 state files to v2 on load"
 ```
 
+> **Implementation note:** the migration is additive — v1 top-level `resources`,
+> `last_apply_at`, and `last_apply_tool_version` are retained alongside the
+> populated `environments["default"]` slice so unmigrated callers continue to
+> work. A final cleanup will remove the v1 fields once every consumer reads
+> from the env slice.
+
 ---
 
 ### Task 4: YAML loader — `_gam_ids` dict + `_envs`; legacy scalar `_gam_id` compat

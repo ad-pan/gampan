@@ -98,6 +98,12 @@ def run(
     effective_include_archived = (
         cfg.include_archived if include_archived is None else include_archived
     )
+    # State drives env-scoped DELETE detection (see scope_current_to_env).
+    # Load once; reused across every target env in the loop below.
+    from gampan.core.state.store import StateStore
+
+    state_store = StateStore(root / ".gampan" / "state.json")
+    plan_state = state_store.load_or_empty(network_code=cfg.network_code)
 
     any_pending = False
     multi = len(targets) > 1
@@ -120,6 +126,8 @@ def run(
             kinds=managed_kinds,
             include_archived=effective_include_archived,
         )
+        # Drop resources owned by other envs so they don't appear as DELETEs.
+        current = scope_current_to_env(current, plan_state, target_env, cfg)
         try:
             plan = build_plan(
                 desired=desired,
@@ -290,6 +298,41 @@ def _load_current(
         for gam_id, r in clients[kind].list(include_archived=include_archived):
             current[f"{kind}:{gam_id}"] = (gam_id, r)
     return current
+
+
+def scope_current_to_env(
+    current: dict[str, tuple[str, Any]],
+    state: Any,
+    env: str,
+    cfg: Config,
+) -> dict[str, tuple[str, Any]]:
+    """Restrict the remote ``current`` map to the resources *env* manages.
+
+    GAM is a single network: ``_load_current`` fetches every remote resource
+    of the managed kinds, env-blind. In multi-env mode that would make every
+    resource not in the current env's desired set look like a DELETE — e.g.
+    ``apply --env=dev`` would propose archiving every prod-only resource.
+
+    The per-env source of truth for "what this env manages" is its state
+    slice (spec §5.4). We keep only the remote entries whose gam_id appears in
+    ``state.environments[env].resources``; everything else is another env's
+    concern and is excluded so it can never surface as a DELETE.
+
+    v1 single-env mode (no ``environments:`` declared) is unaffected — every
+    remote resource belongs to the one env, so the full map passes through.
+    """
+    if not cfg.environments:
+        return current
+    slice_ = state.environments.get(env)
+    if slice_ is None:
+        managed: set[str] = set()
+    else:
+        managed = {
+            f"{entry.kind}:{gid}"
+            for gid, entry in slice_.resources.items()
+            if entry.kind
+        }
+    return {k: v for k, v in current.items() if k in managed}
 
 
 def _managed_kinds(root: Path, desired: list[tuple[str, Resource]]) -> set[str]:

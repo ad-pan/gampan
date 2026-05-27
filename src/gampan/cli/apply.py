@@ -17,6 +17,7 @@ from gampan.cli.plan import (
     _load_desired,
     _managed_kinds,
     build_clients,
+    scope_current_to_env,
 )
 from gampan.core.engine.diff import (
     Action,
@@ -156,6 +157,10 @@ def run(
 
     store = StateStore(root / ".gampan" / "state.json")
     state = store.load()
+
+    # Restrict the env-blind remote fetch to the resources this env manages,
+    # so resources owned by *other* envs never surface as spurious DELETEs.
+    current = scope_current_to_env(current, state, target_env, cfg)
 
     drifted = detect_remote_drift(
         {k: (v.checksum_remote, v.drift_acknowledged) for k, v in state.resources.items()},

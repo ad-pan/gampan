@@ -359,3 +359,77 @@ def test_multi_env_e2e_create_dev_then_promote(
     assert set(data_after["_gam_ids"]) == {"dev", "prod"}, data_after["_gam_ids"]
     assert data_after["_gam_ids"]["dev"] == dev_id
     assert data_after["_gam_ids"]["prod"] == prod_id
+
+
+def test_apply_dev_does_not_delete_prod_only_resource(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a SHARED GAM client (one network) must not let
+    ``apply --env=dev`` propose deleting a prod-only resource.
+
+    Before the scope_current_to_env fix, the env-blind remote fetch made
+    every resource outside the current env's desired set look like a DELETE,
+    so a single shared client (the real-world topology) would archive
+    prod-only resources on a dev apply. The two earlier e2e tests masked
+    this by routing per-env fake clients. This test deliberately uses ONE
+    client to lock the fix in.
+    """
+    monkeypatch.chdir(tmp_path)
+    _scaffold_repo(tmp_path)
+
+    # One network, one client. A prod-only resource lives here with the
+    # canonical (undecorated) name; dev has nothing yet.
+    shared = FakeClient({"700001": _ns("prod-only-style", css=".p{}")})
+
+    (tmp_path / "native-styles").mkdir()
+    # The repo's YAML declares the prod-only resource as prod-scoped.
+    (tmp_path / "native-styles" / "prod-only-style.native-style.yaml").write_text(
+        "kind: NativeStyle\n"
+        "_gam_ids:\n  prod: '700001'\n"
+        "_envs: [prod]\n"
+        "name: prod-only-style\n"
+        "size: {width: 320, height: 250, is_fluid: false}\n"
+        "template_id: 1\n"
+        "html: '<div/>'\n"
+        "css: '.p{}'\n"
+        "targeting: {ad_units: [], custom: {}}\n"
+        "status: ACTIVE\n",
+        encoding="utf-8",
+    )
+    # Seed state so the prod env "manages" 700001 but dev manages nothing.
+    (tmp_path / ".gampan" / "state.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "network_code": "42",
+                "environments": {
+                    "dev": {"resources": {}},
+                    "prod": {
+                        "resources": {
+                            "700001": {
+                                "gam_id": "700001",
+                                "kind": "NativeStyle",
+                                "name_hint": "prod-only-style",
+                                "checksum_local": _ns("prod-only-style", css=".p{}").checksum(),
+                                "checksum_remote": _ns("prod-only-style", css=".p{}").checksum(),
+                            }
+                        }
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with patch("gampan.cli.apply.build_clients", return_value={"NativeStyle": shared}):
+        result = runner.invoke(
+            app, ["apply", "--env", "dev", "--auto-approve"], catch_exceptions=False
+        )
+    assert result.exit_code == 0, result.output
+    # The prod-only resource must still exist on the shared backend — dev
+    # apply must not have archived/deleted it.
+    assert "700001" in shared.store, result.output
+    # And the plan should report no destroys for dev.
+    assert "to destroy" not in result.output or "0 to destroy" in result.output.replace(
+        "\x1b[1;31m", ""
+    ).replace("\x1b[0m", "")

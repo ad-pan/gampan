@@ -1,0 +1,62 @@
+src/gampan/cli/_envs.py
+  cd7d63cce1e47c6b 85-96,100
+src/gampan/cli/import_cmd.py
+  cd7d63cce1e47c6b 14,24-25,137-144,218-223,245,247,257-262,302-319
+src/gampan/cli/init.py
+  cd7d63cce1e47c6b 76
+tests/unit/test_cli_multi_env.py
+  cd7d63cce1e47c6b 188,191-193,197,200,203-204,206,208-209
+examples/multi-env/walkthrough.md
+  cd7d63cce1e47c6b 12,15,19-20,38
+examples/multi-env/README.md
+  cd7d63cce1e47c6b 17,46,51-52,54,58-59
+docs/specs/2026-05-26-multi-env-management-design.md
+  cd7d63cce1e47c6b 483,487-488,517,519,522,525-526,529,538
+---
+{
+  "schema_version": "zax-attestation/1.1.0",
+  "base_commit_sha": "2578db8dfded625ddbc0dd5661246df7a6e7a508",
+  "prompts": {
+    "cd7d63cce1e47c6b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a44eea98-dab0-49c6-a823-11ddb2711580",
+        "model": "claude-opus-4-7"
+      },
+      "skills": [
+        {
+          "id": "superpowers:brainstorming",
+          "ts": "2026-05-26T02:20:28.797Z"
+        },
+        {
+          "id": "cmux-markdown",
+          "ts": "2026-05-26T03:55:00.888Z"
+        },
+        {
+          "id": "superpowers:writing-plans",
+          "ts": "2026-05-26T08:54:51.108Z"
+        },
+        {
+          "id": "superpowers:subagent-driven-development",
+          "ts": "2026-05-26T09:05:42.959Z"
+        }
+      ],
+      "tool_counts": {
+        "Skill": 4,
+        "Bash": 182,
+        "Read": 62,
+        "AskUserQuestion": 1,
+        "Write": 8,
+        "Edit": 89,
+        "ToolSearch": 1,
+        "TaskCreate": 16,
+        "TaskList": 1,
+        "TaskUpdate": 32,
+        "Agent": 25
+      },
+      "total_additions": 155,
+      "total_deletions": 0,
+      "overriden_lines": 0
+    }
+  }
+}

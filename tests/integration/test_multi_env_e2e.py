@@ -64,7 +64,16 @@ class FakeClient:
         self.store[gid] = resource
         return gid
 
-    def update(self, gam_id: str, resource: NativeStyle) -> None:
+    def update(
+        self,
+        gam_id: str,
+        resource: NativeStyle,
+        *,
+        changed_paths: list[str] | None = None,
+    ) -> None:
+        # FakeClient does no per-endpoint dispatch — it just records the
+        # full desired model, so changed_paths is informational only here.
+        del changed_paths
         self.store[gam_id] = resource
 
     def delete(self, gam_id: str) -> None:

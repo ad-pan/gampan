@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, cast
 
 from gampan.core.errors import GamApiPermanentError
@@ -67,29 +68,49 @@ class NativeStyleSoapClient:
         return str(created[0]["id"])
 
     @retry_transient
-    def update(self, gam_id: str, resource: Resource) -> None:
+    def update(
+        self,
+        gam_id: str,
+        resource: Resource,
+        *,
+        changed_paths: Sequence[str] | None = None,
+    ) -> None:
+        """Dispatch by concern: lifecycle (``status``) → perform-action,
+        body fields → ``updateNativeStyles``.
+
+        GAM models the NativeStyle surface as two distinct endpoints —
+        ``performNativeStyleAction`` for lifecycle (Activate / Archive) and
+        ``updateNativeStyles`` for body fields. Calling the body endpoint
+        when the only diff is ``status`` returns a SOAP payload zeep fails
+        to parse (KeyError 'logicalOperator'). We honour the same split:
+        call each endpoint only when its concern actually changed.
+
+        When ``changed_paths`` is None (legacy caller, no diff context),
+        we conservatively call both — matches the pre-multi-env contract.
+        """
         ns = cast(NativeStyle, resource)
-        # GAM does not accept status transitions through ``updateNativeStyles``;
-        # the lifecycle verbs live on ``performNativeStyleAction``. Posting a
-        # body with a flipped ``status`` returns a SOAP payload googleads
-        # fails to parse (KeyError 'logicalOperator') — most visible as the
-        # ARCHIVED→ACTIVE un-archive being completely blocked. Route status
-        # through the action (idempotent: a no-op when the remote already
-        # matches) and strip it from the body update so the action is the
-        # authoritative source of lifecycle truth.
-        action_xsi = {
-            "ACTIVE": "ActivateNativeStyles",
-            "ARCHIVED": "ArchiveNativeStyles",
-        }.get(ns.status)
-        if action_xsi:
-            self._svc.performNativeStyleAction(
-                {"xsi_type": action_xsi},
-                {"query": f"WHERE id = {gam_id}"},
-            )
-        payload = ns.to_remote()
-        payload["id"] = gam_id
-        payload.pop("status", None)
-        self._svc.updateNativeStyles([payload])
+        paths: set[str] | None = set(changed_paths) if changed_paths is not None else None
+        status_changed = paths is None or "status" in paths
+        body_changed = paths is None or bool(paths - {"status"})
+
+        if status_changed:
+            action_xsi = {
+                "ACTIVE": "ActivateNativeStyles",
+                "ARCHIVED": "ArchiveNativeStyles",
+            }.get(ns.status)
+            if action_xsi:
+                self._svc.performNativeStyleAction(
+                    {"xsi_type": action_xsi},
+                    {"query": f"WHERE id = {gam_id}"},
+                )
+
+        if body_changed:
+            payload = ns.to_remote()
+            payload["id"] = gam_id
+            # status is owned by the perform-action above; including it in
+            # the body update would trigger the zeep parse bug.
+            payload.pop("status", None)
+            self._svc.updateNativeStyles([payload])
 
     @retry_transient
     def delete(self, gam_id: str) -> None:

@@ -70,7 +70,14 @@ def execute_plan(
                     _write_gam_id_back(root / change.yaml_path, gam_id, env=env)
             elif change.action == Action.UPDATE:
                 assert change.desired is not None and change.gam_id is not None
-                client.update(change.gam_id, change.desired)
+                # Hand the diff paths to the client so it can dispatch to the
+                # right GAM endpoint per concern (e.g. NativeStyle status →
+                # perform-action, body fields → updateNativeStyles).
+                client.update(
+                    change.gam_id,
+                    change.desired,
+                    changed_paths=[d.path for d in change.diffs],
+                )
                 state.resources[change.key] = _entry(change.gam_id, change.desired)
             elif change.action == Action.DELETE:
                 assert change.gam_id is not None

@@ -293,6 +293,10 @@ def _run_multi_env_import(
                 last_modified_remote=datetime.now(tz=UTC),
             )
 
+    # Mark the state v2 so a subsequent load does NOT re-run the v1→v2
+    # migration, which would overwrite the env slices we just populated with
+    # a single `default` slice built from the (empty) top-level resources.
+    state.schema_version = 2
     store.save(state)
     n_resources = sum(len(s.resources) for s in state.environments.values())
     typer.echo(

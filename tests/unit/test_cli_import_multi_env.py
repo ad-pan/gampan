@@ -157,9 +157,22 @@ def test_import_multi_env_writes_merged_gam_ids_and_per_env_state(
 
     # Per-env state slices keyed by gam_id (v2 layout).
     state_doc = json.loads((tmp_path / ".gampan" / "state.json").read_text())
+    assert state_doc["schema_version"] == 2  # must be v2 so reload skips migration
     envs = state_doc["environments"]
     assert "943048" in envs["dev"]["resources"]
     assert "961262" in envs["prod"]["resources"]
+
+    # Regression: reloading the state through StateStore must NOT clobber the
+    # env slices. import writes schema_version=2; if it left it at 1, the
+    # v1→v2 migration would overwrite `environments` with a single `default`
+    # slice built from the (empty) top-level resources, wiping dev/prod.
+    from gampan.core.state.store import StateStore
+
+    reloaded = StateStore(tmp_path / ".gampan" / "state.json").load()
+    assert set(reloaded.environments) == {"dev", "prod"}
+    assert "943048" in reloaded.environments["dev"].resources
+    assert "961262" in reloaded.environments["prod"].resources
+    assert "default" not in reloaded.environments
 
 
 def test_import_multi_env_partial_env_writes_envs_annotation(

@@ -69,8 +69,26 @@ class NativeStyleSoapClient:
     @retry_transient
     def update(self, gam_id: str, resource: Resource) -> None:
         ns = cast(NativeStyle, resource)
+        # GAM does not accept status transitions through ``updateNativeStyles``;
+        # the lifecycle verbs live on ``performNativeStyleAction``. Posting a
+        # body with a flipped ``status`` returns a SOAP payload googleads
+        # fails to parse (KeyError 'logicalOperator') — most visible as the
+        # ARCHIVED→ACTIVE un-archive being completely blocked. Route status
+        # through the action (idempotent: a no-op when the remote already
+        # matches) and strip it from the body update so the action is the
+        # authoritative source of lifecycle truth.
+        action_xsi = {
+            "ACTIVE": "ActivateNativeStyles",
+            "ARCHIVED": "ArchiveNativeStyles",
+        }.get(ns.status)
+        if action_xsi:
+            self._svc.performNativeStyleAction(
+                {"xsi_type": action_xsi},
+                {"query": f"WHERE id = {gam_id}"},
+            )
         payload = ns.to_remote()
         payload["id"] = gam_id
+        payload.pop("status", None)
         self._svc.updateNativeStyles([payload])
 
     @retry_transient

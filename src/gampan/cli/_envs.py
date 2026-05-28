@@ -82,43 +82,19 @@ def resolve_plan_targets(
     return [resolve_single_env(cfg, requested)]
 
 
-def resolve_multi_envs(
-    cfg: Config, requested_csv: str | None, *, flag: str = "--envs"
-) -> list[str]:
-    """Resolve ``import``'s comma-separated env list.
+def resolve_import_envs(cfg: Config) -> list[str]:
+    """Resolve ``import``'s env list — always ALL declared environments.
 
-    - v1 mode: flag ignored, returns ``[V1_DEFAULT_ENV]`` so downstream
-      single-env code paths keep working.
-    - multi-env: flag required, every name must exist in
-      ``cfg.environments``. Unknown names abort.
+    ``import`` reads the whole GAM network (one network per config) and
+    writes canonical YAMLs covering every environment at once. Computing the
+    ``_envs`` annotation correctly requires seeing *every* declared env: a
+    resource present only in an imported subset would be mis-tagged as
+    subset-only, silently dropping the other envs' gam_ids. ``import``
+    therefore takes no env flag — it always covers all declared envs.
+
+    v1 single-env mode (no ``environments:`` block) returns the placeholder
+    env so downstream single-env code paths keep working.
     """
     if not cfg.environments:
         return [V1_DEFAULT_ENV]
-
-    if requested_csv is None:
-        typer.echo(
-            f"Error: {flag} is required when environments are declared in "
-            f".gampan/config.yml. Valid envs: {_format_choices(cfg.environments)}",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-
-    names = [n.strip() for n in requested_csv.split(",") if n.strip()]
-    if not names:
-        typer.echo(
-            f"Error: {flag} value is empty. "
-            f"Valid envs: {_format_choices(cfg.environments)}",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-
-    unknown = [n for n in names if n not in cfg.environments]
-    if unknown:
-        typer.echo(
-            f"Error: unknown env(s) in {flag}: {', '.join(unknown)}. "
-            f"Valid envs: {_format_choices(cfg.environments)}",
-            err=True,
-        )
-        raise typer.Exit(code=2)
-
-    return names
+    return sorted(cfg.environments)

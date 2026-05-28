@@ -73,7 +73,7 @@ def run(
             typer.echo(
                 "\nNext: `gampan auth login`, author `.gampan/hooks` for your "
                 "env naming convention (see examples/multi-env), then "
-                f"`gampan import --envs={','.join(env_names)}`."
+                "`gampan import` (imports all declared environments)."
             )
         else:
             typer.echo("\nNext: `gampan auth login`, then `gampan import`.")

@@ -11,7 +11,7 @@ from typing import Any
 import typer
 from ruamel.yaml import YAML
 
-from gampan.cli._envs import resolve_multi_envs
+from gampan.cli._envs import resolve_import_envs
 from gampan.cli.plan import _load_config, build_clients
 from gampan.core.engine.executor import stamp_gam_id_into_yaml
 from gampan.core.fs.loader import CONVENTION_DIRS
@@ -21,6 +21,8 @@ from gampan.core.hooks.discover import resolve_hook_path
 from gampan.core.hooks.invoke import invoke_hook
 from gampan.core.state.schema import EnvironmentSlice, ResourceEntry
 from gampan.core.state.store import StateStore
+from gampan.gam.models.creative_template import CreativeTemplate
+from gampan.gam.models.native_style import NativeStyle
 
 
 @dataclass
@@ -125,15 +127,6 @@ def run(
             "for this run; falls back to the config value when omitted."
         ),
     ),
-    envs: str | None = typer.Option(
-        None,
-        "--envs",
-        help=(
-            "Comma-separated env list to import into (e.g. `dev,prod`). Required "
-            "when environments are declared in .gampan/config.yml; ignored in v1 "
-            "single-env mode. Each name must be a key under `environments:`."
-        ),
-    ),
 ) -> None:
     """Pull GAM resources into YAML + populate state.json."""
     root = Path.cwd()
@@ -143,13 +136,12 @@ def run(
         typer.echo("Not a gampan repo (missing .gampan/config.yml). Run `gampan init` first.")
         raise typer.Exit(code=1) from e
 
-    # Task 13 parses and validates --envs; the actual multi-env
-    # reconciliation (per-env _gam_ids write-back, reverse-transform) lands
-    # in Task 14. Until then, ``target_envs`` only affects flag validation:
-    # v1 single-env import still runs unchanged when the list is the
-    # placeholder ``[default]``.
-    target_envs = resolve_multi_envs(cfg, envs)
-    assert target_envs, "resolve_multi_envs guarantees a non-empty list"
+    # import always covers EVERY declared environment. There is no env flag:
+    # `_envs` annotations can only be computed correctly when every env is
+    # seen at once (a subset import would mis-tag shared resources as
+    # subset-only). v1 single-env mode resolves to the placeholder env.
+    target_envs = resolve_import_envs(cfg)
+    assert target_envs, "resolve_import_envs guarantees a non-empty list"
 
     effective_include_archived = (
         cfg.include_archived if include_archived is None else include_archived
@@ -225,12 +217,11 @@ def _run_multi_env_import(
     state: Any,
 ) -> None:
     """Multi-env import: fetch per-env, reverse-transform, reconcile, write."""
-    # 1. Fetch per env per kind; keep both the raw model (for YAML write)
-    #    and a serialized dict (for reconcile content comparison).
+    # 1. Fetch per env per kind, serialize to dicts for reconcile. The model
+    #    written to YAML is reconstructed from the reconciled payload (step 4),
+    #    NOT stashed here — reverse-transform may filter the per-env list, so
+    #    any positional model bookkeeping would misalign.
     per_env_dicts: dict[str, list[dict[str, Any]]] = {env: [] for env in target_envs}
-    # (env, kind, canonical_name) → original Resource model (any env's copy works
-    # since reconcile guarantees identical content modulo gam_id).
-    model_by_canonical: dict[tuple[str, str], Any] = {}
 
     for env in target_envs:
         env_resources: list[dict[str, Any]] = []
@@ -241,8 +232,6 @@ def _run_multi_env_import(
                 d["name"] = r.name
                 d["gam_id"] = str(gam_id)
                 env_resources.append(d)
-                # last-write-wins; bodies are equal post-reconcile
-                model_by_canonical[(kind, r.name)] = r
 
         # 2. reverse-transform hook (if present)
         hook_path = resolve_hook_path(root, cfg.hook, "reverse-transform")
@@ -255,19 +244,7 @@ def _run_multi_env_import(
         out = invoke_hook(
             hook_path=hook_path, subcommand="reverse-transform", payload=ti.to_payload()
         )
-        canonical = TransformOutput.from_payload(out).resources
-
-        # If the hook renamed any resources, also re-key model_by_canonical so
-        # the later YAML write finds the model under its canonical name.
-        for orig, post in zip(env_resources, canonical, strict=False):
-            new_name = post.get("name")
-            kind_o = orig["kind"]
-            if new_name and new_name != orig["name"]:
-                m = model_by_canonical.pop((kind_o, orig["name"]), None)
-                if m is not None:
-                    model_by_canonical[(kind_o, new_name)] = m
-
-        per_env_dicts[env] = canonical
+        per_env_dicts[env] = TransformOutput.from_payload(out).resources
 
     # 3. Reconcile across envs.
     try:
@@ -279,14 +256,10 @@ def _run_multi_env_import(
     # 4. Write each canonical YAML and per-env state.
     seen_slugs: set[str] = set()
     for mr in merged:
-        model = model_by_canonical.get((mr.kind, mr.canonical_name))
-        if model is None:
-            # Should not happen; defense in depth.
-            typer.echo(f"Error: no source model for {mr.kind}:{mr.canonical_name}", err=True)
-            raise typer.Exit(code=1)
-        # Ensure model name matches canonical (reverse-transform may have renamed).
-        if model.name != mr.canonical_name:
-            model = model.model_copy(update={"name": mr.canonical_name})
+        # Reconstruct the model from the reconciled canonical payload. The
+        # payload is the reverse-transformed dict (gam_id already stripped by
+        # reconcile, name canonicalized by the hook).
+        model = _model_from_payload(mr.kind, mr.payload, mr.canonical_name)
 
         # Scaffold YAML using any env's gam_id as the primary; we'll rewrite
         # the identity block to the full dict immediately after.
@@ -326,6 +299,22 @@ def _run_multi_env_import(
         f"\nState: {n_resources} resources tracked in .gampan/state.json "
         f"across {len(state.environments)} env(s)"
     )
+
+
+def _model_from_payload(kind: str, payload: dict[str, Any], canonical_name: str) -> Any:
+    """Rebuild a Resource model from a reconciled canonical payload.
+
+    ``payload`` is ``model_dump(mode="python")`` output (plus ``kind`` /
+    ``name``, with ``gam_id`` already stripped by reconcile). Drop the
+    non-model ``kind`` key, force the canonical name, and re-validate.
+    """
+    fields = {k: v for k, v in payload.items() if k not in ("kind", "gam_id")}
+    fields["name"] = canonical_name
+    if kind == "NativeStyle":
+        return NativeStyle.model_validate(fields)
+    if kind == "CreativeTemplate":
+        return CreativeTemplate.model_validate(fields)
+    raise ValueError(f"cannot rebuild model for unknown kind {kind!r}")
 
 
 def _stamp_envs_annotation(yaml_path: Path, envs: list[str]) -> None:

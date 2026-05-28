@@ -9,13 +9,15 @@ This file walks through every multi-env CLI command in order, showing the inputs
 ```bash
 mkdir my-gam-iac && cd my-gam-iac
 gampan auth login
-gampan init --network-code 21700000000
+gampan init --network-code 21700000000 --envs dev,prod
 ```
 
-Edit `.gampan/config.yml`:
+This scaffolds `.gampan/config.yml` with the environments already declared:
 
 ```yaml
 network_code: "21700000000"
+default_dry_run: false
+include_archived: false
 environments:
   dev: {}
   prod: {}
@@ -33,7 +35,7 @@ chmod +x .gampan/hooks
 ## 1. Import — pull both envs into canonical YAML
 
 ```bash
-gampan import --envs=dev,prod
+gampan import
 ```
 
 For a GAM network that holds e.g. `[dev] article-card` and `article-card` as two NativeStyles, gampan emits:

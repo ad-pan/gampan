@@ -185,28 +185,28 @@ def test_refresh_v1_works_without_env_flag(
 # ---------------------------------------------------------------------------
 
 
-def test_import_envs_flag_required_when_environments_declared(
+def test_import_covers_all_declared_envs_without_flag(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # import takes no env flag — it always imports every declared env so the
+    # `_envs` annotation can be computed correctly. With zero remote
+    # resources it simply runs to completion in multi-env mode.
     monkeypatch.chdir(_multi_env_repo(tmp_path))
     with patch("gampan.cli.import_cmd.build_clients", return_value=_empty_clients()):
         result = runner.invoke(app, ["import"], catch_exceptions=False)
-    out = result.stdout + result.stderr
-    assert result.exit_code == 2
-    assert "--envs" in out
+    assert result.exit_code == 0, result.stdout + result.stderr
 
 
-def test_import_envs_unknown_name_rejected(
+def test_import_rejects_env_flag(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # `--envs` was removed: passing it must be a CLI parse error (exit 2),
+    # guarding against the unsafe subset-import footgun.
     monkeypatch.chdir(_multi_env_repo(tmp_path))
-    with patch("gampan.cli.import_cmd.build_clients", return_value=_empty_clients()):
-        result = runner.invoke(
-            app, ["import", "--envs", "dev,staging"], catch_exceptions=False
-        )
-    out = result.stdout + result.stderr
+    result = runner.invoke(app, ["import", "--envs", "dev"], catch_exceptions=False)
     assert result.exit_code == 2
-    assert "staging" in out
+    out = (result.stdout + result.stderr).lower()
+    assert "no such option" in out or "--envs" in out
 
 
 def test_import_v1_works_without_envs_flag(

@@ -14,7 +14,7 @@ The reference spec is at [`docs/specs/2026-05-26-multi-env-management-design.md`
 
 - **`.gampan/config.yml`** — declares the two environments. `vars` is empty in this example because this convention doesn't need per-env config beyond the env name.
 - **`.gampan/hooks`** — executable Python script implementing the prefix convention. Handles `transform` (forward) and `reverse-transform` (during import); exits 64 for anything else (pass-through).
-- **`native-styles/`**, **`creative-templates/`**, **`native-formats/`** — would contain canonical YAML files after `gampan import --envs=dev,prod`. Not included here (network-specific data).
+- **`native-styles/`**, **`creative-templates/`**, **`native-formats/`** — would contain canonical YAML files after `gampan import`. Not included here (network-specific data).
 
 ## Hook walkthrough
 
@@ -43,26 +43,20 @@ Behavior (separates streams):
   - When importing **dev**: keep only resources whose `name` starts with `[dev] `, strip the prefix.
   - When importing **prod**: keep only resources whose `name` does NOT start with `[dev] `.
 
-This split is what lets `gampan import --envs=dev,prod` produce one canonical YAML per logical resource, with `_gam_ids: {dev: ..., prod: ...}` recording both remote identifiers.
+This split is what lets `gampan import` produce one canonical YAML per logical resource, with `_gam_ids: {dev: ..., prod: ...}` recording both remote identifiers.
 
 ## Adopting this convention in your repo
 
 ```bash
-# 1. Scaffold
-gampan init --network-code <YOUR_GAM_NETWORK_CODE>
+# 1. Scaffold with environments declared up front.
+gampan init --network-code <YOUR_GAM_NETWORK_CODE> --envs dev,prod
 
-# 2. Edit .gampan/config.yml to declare environments:
-#    network_code: "..."
-#    environments:
-#      dev: {}
-#      prod: {}
-
-# 3. Copy this directory's .gampan/hooks into your repo, chmod +x it.
+# 2. Copy this directory's .gampan/hooks into your repo, chmod +x it.
 cp examples/multi-env/.gampan/hooks .gampan/hooks
 chmod +x .gampan/hooks
 
-# 4. Import.
-gampan import --envs=dev,prod
+# 3. Import (always covers every declared environment).
+gampan import
 ```
 
 After import, each canonical YAML carries an env-keyed `_gam_ids` block:

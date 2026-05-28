@@ -141,7 +141,7 @@ def test_import_multi_env_writes_merged_gam_ids_and_per_env_state(
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["import", "--resource", "native-styles", "--envs", "dev,prod"],
+            ["import", "--resource", "native-styles"],
         )
     assert result.exit_code == 0, result.output
 
@@ -182,7 +182,7 @@ def test_import_multi_env_partial_env_writes_envs_annotation(
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["import", "--resource", "native-styles", "--envs", "dev,prod"],
+            ["import", "--resource", "native-styles"],
         )
     assert result.exit_code == 0, result.output
 
@@ -222,7 +222,7 @@ def test_import_multi_env_conflict_aborts(
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["import", "--resource", "native-styles", "--envs", "dev,prod"],
+            ["import", "--resource", "native-styles"],
         )
     # Hard error: non-zero exit, error message references the conflict.
     assert result.exit_code != 0

@@ -479,10 +479,12 @@ When `_gam_ids[X]` is missing (new resource or first-time apply to a new env), t
 | Flag | Applies to | Behavior |
 |---|---|---|
 | `--env <name>` (alias `-e`) | `plan`, `apply`, `refresh` | Required when `environments:` is declared. Targets exactly one environment. |
-| `--envs <a,b,...>` | `import` only | Multi-environment import (see §6.3). Single value also accepted. |
 | `--all-envs` | `plan` only | Iterate over every declared environment, print each plan sequentially. Convenience for PR CI. |
+| `--envs <a,b,...>` | `init` only | Declare environments at scaffold time. |
 
 `apply --env` accepts only one value by design (§2 non-goal). `--all-envs` for apply is not provided.
+
+**`import` has no env flag** — it always covers every declared environment (see §6.3). A subset import cannot compute `_envs` correctly (a resource present only in the imported subset would be mis-tagged as subset-only, silently dropping the other envs' gam_ids), so the operation is all-envs by construction.
 
 ### 6.2 Hook discovery
 
@@ -512,17 +514,19 @@ Error: environments declared but no executable hook found.
   See docs/guides/multi-env.md
 ```
 
-### 6.3 `import` — multi-environment mode
+### 6.3 `import` — always all declared environments
 
-When `environments:` is declared, `gampan import` requires `--envs`:
+`gampan import` takes **no env flag**. When `environments:` is declared it imports every declared environment at once; in v1 single-env mode it imports the one (implicit) env.
 
 ```bash
-$ gampan import --envs=dev,prod
+$ gampan import
 ```
+
+**Why no subset flag.** `import` reads one GAM network and writes canonical YAMLs whose `_envs` annotation records *which* environments each resource lives in. That determination is only correct when every declared env is seen in the same pass: a resource present in both dev and prod, imported with only dev in scope, would be written as `_envs: [dev]` and its prod `gam_id` would be silently dropped. A later `apply --env=prod` would then treat the real prod resource as unmanaged. To make this footgun unrepresentable, `import` is all-envs by construction — there is no `--env`/`--envs` selector.
 
 Flow:
 
-1. For each environment in `--envs`, fetch all remote resources (each with its GAM-issued `gam_id`).
+1. For each declared environment, fetch all remote resources (each with its GAM-issued `gam_id`). The fetch hits the same single network every time; the per-env pass exists so `reverse-transform` can classify resources into the right env bucket.
 2. Run `reverse-transform` per environment (if the hook implements it; otherwise pass-through).
 3. Build a canonical-name-keyed map per environment, retaining each entry's `gam_id`.
 4. **Cross-environment reconciliation**:
@@ -531,9 +535,7 @@ Flow:
    - Same canonical name in multiple environments with **different content** ⇒ error, list the differences, require human resolution. (This is real drift; gampan refuses to silently pick a winner.)
 5. Write state per-environment, keyed by gam_id (§5.4).
 
-Single-environment import (`gampan import --envs=dev`) is supported: same flow with one environment, no cross-env reconciliation, no `_envs` annotation written (default = all envs, which trivially holds when only one is declared).
-
-**Note on reverse-transform.** Cross-environment reconciliation depends on the canonical name being shared across environments. If the org's hook does not implement `reverse-transform`, the "canonical name" defaults to the raw remote name (`[dev] article-card` vs `article-card`, or whatever the org's convention produces) — decorated and undecorated forms never match across environments, so step 4 falls through to single-env-annotated duplicates. Multi-env import is therefore most useful when `reverse-transform` is implemented; otherwise users typically import each environment separately and reconcile by hand.
+**Note on reverse-transform.** Cross-environment reconciliation depends on the canonical name being shared across environments. If the org's hook does not implement `reverse-transform`, the "canonical name" defaults to the raw remote name (`[dev] article-card` vs `article-card`, or whatever the org's convention produces) — decorated and undecorated forms never match across environments, so step 4 falls through to single-env-annotated duplicates. Multi-env import is therefore only meaningful when `reverse-transform` is implemented.
 
 ### 6.4 Safety
 
@@ -607,7 +609,7 @@ Two design points the hook makes explicit:
 - **Kind-awareness lives in the hook**, not in gampan. The list `DECORATED_KINDS` is the org's policy. gampan core has no notion of "which kinds are env-aware".
 - **Asymmetry is honored in both directions**. Transform only decorates dev. Reverse-transform separates streams: dev import keeps only decorated resources (with prefix stripped); prod import keeps only undecorated resources; shared kinds (CT) flow into both.
 
-### 7.3 Repo layout (after `gampan import --envs=dev,prod`)
+### 7.3 Repo layout (after `gampan import`)
 
 ```
 my-gam-iac/
@@ -653,7 +655,7 @@ $ gampan init --network-code 21700000000
 $ vim .gampan/config.yml         # declare environments
 $ vim .gampan/hooks               # author transform + reverse-transform
 $ chmod +x .gampan/hooks
-$ gampan import --envs=dev,prod
+$ gampan import
 ```
 
 Expected output for a network containing both env-split NativeStyles (e.g. `article-card` with a `[dev] article-card` counterpart), a prod-only NativeStyle, a dev-only experimental NativeStyle, and shared CreativeTemplates:
@@ -811,7 +813,7 @@ The hook never sees credentials and never makes GAM API calls. It is determinist
 | User state | v1.x behavior |
 |---|---|
 | No `environments:`, no hook file | Identical to v1. `--env` flag absent. On the next state write, the file is rewritten to schema v2 with all entries nested under `environments.default.*`. The user is never required to type "default" anywhere. |
-| User adds `environments:` (e.g. `dev`, `prod`) to an existing repo | On the next command, gampan detects state schema v2 with only `default` populated and `environments:` newly declared. It refuses to proceed and prints: re-run `gampan import --envs=<list>` to repopulate state per environment, or manually edit the state file to rename `default` to the intended env. No new CLI command; the user's path forward is import (which already understands multi-env). |
+| User adds `environments:` (e.g. `dev`, `prod`) to an existing repo | On the next command, gampan detects state schema v2 with only `default` populated and `environments:` newly declared. It refuses to proceed and prints: re-run `gampan import` to repopulate state per environment, or manually edit the state file to rename `default` to the intended env. No new CLI command; the user's path forward is import (which already understands multi-env). |
 | `env:` field present in old `config.yml` | Read and warned ("the `env:` field is removed in v1.x; move to a comment or use `environments:`") but otherwise ignored. Not a hard error in v1.x to ease transition; becomes one in v2. |
 | YAML carries scalar `_gam_id: "<id>"` (v1 form) | Accepted with a deprecation warning. On the next apply, gampan rewrites the YAML in place: `_gam_id: "<id>"` → `_gam_ids: { <env>: "<id>" }` where `<env>` is the env being applied (or `default` if no `environments:` declared). v2 removes scalar acceptance. |
 | YAML carries no identity field at all (`_gam_id` and `_gam_ids` both absent) | Treated as a brand-new resource. First `apply --env=X` creates it in GAM, captures the returned id, writes back `_gam_ids[X]`. Plan output flags these explicitly so reviewers see "this YAML will create a new GAM resource". |
@@ -827,7 +829,7 @@ The hook never sees credentials and never makes GAM API calls. It is determinist
 
 ## 12. Success criteria
 
-1. **Real-world onboarding**: an organization with an existing single-network dev/prod setup — where env distinction lives in names and/or fields per a per-kind convention — can adopt gampan via `gampan init` → author hooks → `gampan import --envs=dev,prod`, ending with a clean repo whose `deploy/dev` and `deploy/prod` branches run `gampan apply --env=<env>` in CI.
+1. **Real-world onboarding**: an organization with an existing single-network dev/prod setup — where env distinction lives in names and/or fields per a per-kind convention — can adopt gampan via `gampan init` → author hooks → `gampan import`, ending with a clean repo whose `deploy/dev` and `deploy/prod` branches run `gampan apply --env=<env>` in CI.
 2. **Single source of truth**: editing one YAML file produces synchronized changes across both environments in `gampan plan --all-envs` output, with no shared-content duplication on disk.
 3. **Dev-only escape hatch**: a resource with `_envs: [dev]` never appears in any `prod` plan, even when merged into `deploy/prod`.
 4. **Backward compatible**: existing v1 single-environment repos continue to work without authoring a hook or declaring environments.

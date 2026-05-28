@@ -176,7 +176,7 @@ def test_multi_env_e2e_import_plan_apply(
     with patch("gampan.cli.import_cmd.build_clients", return_value={"NativeStyle": import_client}):
         result = runner.invoke(
             app,
-            ["import", "--resource", "native-styles", "--envs", "dev,prod"],
+            ["import", "--resource", "native-styles"],
             catch_exceptions=False,
         )
     assert result.exit_code == 0, result.output

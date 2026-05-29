@@ -181,7 +181,19 @@ def test_e2e_plan_round_trip_clean(
     # Plan exits 2 on pending changes via typer.Exit(code=2); 0 / no raise
     # means clean. Run with detailed_exitcode=False and read has_pending
     # directly so the assertion is friendlier on failure.
-    plan_cmd.run(detailed_exitcode=False, as_json=False, show_unchanged=False)
+    #
+    # Direct call (no CliRunner) bypasses typer, so each parameter must be
+    # supplied — otherwise typer.Option(...) defaults reach the function as
+    # OptionInfo objects (truthy), which trip the multi-env mutual-exclusivity
+    # guard between --env and --all-envs.
+    plan_cmd.run(
+        detailed_exitcode=False,
+        as_json=False,
+        show_unchanged=False,
+        include_archived=None,
+        env=None,
+        all_envs=False,
+    )
     # No exception → clean enough for cassette playback. Round-trip stability
     # is already covered by the live test the user ran manually; this cassette
     # mainly proves the REST path replays end-to-end offline.

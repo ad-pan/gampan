@@ -162,10 +162,28 @@ def run(
     # so resources owned by *other* envs never surface as spurious DELETEs.
     current = scope_current_to_env(current, state, target_env, cfg)
 
-    drifted = detect_remote_drift(
-        {k: (v.checksum_remote, v.drift_acknowledged) for k, v in state.resources.items()},
-        current,
-    )
+    # Build the expected-checksum map drift detection compares against.
+    # In multi-env mode the env-slice (``state.environments[<env>].resources``)
+    # is the source of truth — the legacy flat ``state.resources`` is empty
+    # after a multi-env import, so reading from it would silently disable
+    # drift detection entirely. Single-env (v1) repos still use the flat map.
+    if cfg.environments:
+        slice_ = state.environments.get(target_env)
+        expected = (
+            {
+                f"{e.kind}:{gid}": (e.checksum_remote, e.drift_acknowledged)
+                for gid, e in slice_.resources.items()
+                if e.kind
+            }
+            if slice_
+            else {}
+        )
+    else:
+        expected = {
+            k: (v.checksum_remote, v.drift_acknowledged)
+            for k, v in state.resources.items()
+        }
+    drifted = detect_remote_drift(expected, current)
     if drifted:
         message_body = "\n".join(f"  - {k}" for k in drifted)
         if not allow_drift:

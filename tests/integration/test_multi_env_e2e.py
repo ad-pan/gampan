@@ -369,6 +369,20 @@ def test_multi_env_e2e_create_dev_then_promote(
     assert data_after["_gam_ids"]["dev"] == dev_id
     assert data_after["_gam_ids"]["prod"] == prod_id
 
+    # Regression for C3: running plan after the CREATE must be clean.
+    # Without the env-slice writeback, the new gam_id is missing from
+    # `state.environments[<env>].resources`, so `scope_current_to_env`
+    # drops it from current → diff proposes another CREATE (or errors with
+    # "absent from remote"). This assertion locks in the fix.
+    with patch("gampan.cli.apply.build_clients", return_value={"NativeStyle": prod_client}):
+        post = runner.invoke(
+            app,
+            ["apply", "--env", "prod", "--auto-approve"],
+            catch_exceptions=False,
+        )
+    assert post.exit_code == 0, post.output
+    assert "No changes" in post.output, post.output
+
 
 def test_apply_dev_does_not_delete_prod_only_resource(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -222,6 +222,12 @@ def _run_multi_env_import(
     #    NOT stashed here — reverse-transform may filter the per-env list, so
     #    any positional model bookkeeping would misalign.
     per_env_dicts: dict[str, list[dict[str, Any]]] = {env: [] for env in target_envs}
+    # Per-(env, gam_id) checksum of the *as-fetched* remote model (before
+    # reverse-transform). Drift detection in apply compares against this
+    # decorated-form checksum because GAM holds the decorated form; using
+    # the post-RT canonical checksum would mark every imported resource as
+    # drifted on the very next plan.
+    remote_checksums: dict[tuple[str, str], str] = {}
 
     for env in target_envs:
         env_resources: list[dict[str, Any]] = []
@@ -232,6 +238,7 @@ def _run_multi_env_import(
                 d["name"] = r.name
                 d["gam_id"] = str(gam_id)
                 env_resources.append(d)
+                remote_checksums[(env, str(gam_id))] = r.checksum()
 
         # 2. reverse-transform hook (if present)
         hook_path = resolve_hook_path(root, cfg.hook, "reverse-transform")
@@ -279,10 +286,12 @@ def _run_multi_env_import(
 
         typer.echo(f"  ✓ {yaml_path.relative_to(root)}")
 
-        # 5. Per-env state writes. Use additive v2 layout: populate
-        #    state.environments[env].resources[gam_id] keyed by gam_id.
-        cs = model.checksum()
+        # 5. Per-env state writes. Each env stores its OWN remote checksum —
+        #    the model GAM actually returned (decorated form), keyed by gam_id.
+        #    Drift detection in apply later compares directly against this,
+        #    so it has to match what `client.list()` will report next time.
         for env, gid in mr.gam_ids.items():
+            cs = remote_checksums[(env, gid)]
             slice_ = state.environments.setdefault(env, EnvironmentSlice())
             slice_.resources[gid] = ResourceEntry(
                 gam_id=gid,

@@ -12,7 +12,7 @@ from ruamel.yaml.comments import CommentedMap
 from gampan.core.engine.diff import Action
 from gampan.core.engine.planner import Plan
 from gampan.core.protocols import Client, Resource
-from gampan.core.state.schema import ResourceEntry, State
+from gampan.core.state.schema import EnvironmentSlice, ResourceEntry, State
 from gampan.core.state.store import StateStore
 
 # Round-trip YAML loader reused across CREATE writebacks. ruamel keeps no
@@ -65,7 +65,9 @@ def execute_plan(
                 # duplicate.
                 new_key = f"{kind}:{gam_id}"
                 state.resources.pop(change.key, None)
-                state.resources[new_key] = _entry(gam_id, change.desired)
+                entry = _entry(gam_id, change.desired, kind=kind)
+                state.resources[new_key] = entry
+                _record_in_env_slice(state, env, gam_id, entry)
                 if root is not None and change.yaml_path is not None:
                     _write_gam_id_back(root / change.yaml_path, gam_id, env=env)
             elif change.action == Action.UPDATE:
@@ -78,7 +80,9 @@ def execute_plan(
                     change.desired,
                     changed_paths=[d.path for d in change.diffs],
                 )
-                state.resources[change.key] = _entry(change.gam_id, change.desired)
+                entry = _entry(change.gam_id, change.desired, kind=kind)
+                state.resources[change.key] = entry
+                _record_in_env_slice(state, env, change.gam_id, entry)
             elif change.action == Action.DELETE:
                 assert change.gam_id is not None
                 # GAM has no hard-delete; ``client.delete`` archives. Skip
@@ -89,6 +93,7 @@ def execute_plan(
                 if not already_archived:
                     client.delete(change.gam_id)
                 state.resources.pop(change.key, None)
+                _drop_from_env_slice(state, env, change.gam_id)
 
             state.last_apply_at = datetime.now(tz=UTC)
             store.save(state)
@@ -102,10 +107,17 @@ def execute_plan(
     return state
 
 
-def _entry(gam_id: str, resource: Resource) -> ResourceEntry:
+def _entry(gam_id: str, resource: Resource, *, kind: str | None = None) -> ResourceEntry:
     cs = resource.checksum()
+    # ``kind`` and ``name_hint`` are required for ``scope_current_to_env`` to
+    # keep the entry visible — ``entry.kind`` falsy filters it out. Both
+    # populated at write time means a fresh CREATE shows up on the next plan
+    # with no extra refresh dance.
+    name_hint = getattr(resource, "name", None)
     return ResourceEntry(
         gam_id=gam_id,
+        kind=kind,
+        name_hint=name_hint,
         checksum_local=cs,
         checksum_remote=cs,
         last_modified_remote=datetime.now(tz=UTC),
@@ -114,6 +126,27 @@ def _entry(gam_id: str, resource: Resource) -> ResourceEntry:
         # every fresh apply into an unacknowledged drift.
         drift_acknowledged=True,
     )
+
+
+def _record_in_env_slice(
+    state: State, env: str, gam_id: str, entry: ResourceEntry
+) -> None:
+    """Mirror an apply mutation into ``state.environments[env].resources``.
+
+    Until every consumer is fully env-aware (refresh and parts of plan
+    still touch the flat v1 ``state.resources``), the executor writes
+    both. The env-slice copy is what ``scope_current_to_env`` consults on
+    the next plan — without this step, every CREATE/UPDATE looks like a
+    phantom unmanaged resource (or a duplicate CREATE) on subsequent runs.
+    """
+    slice_ = state.environments.setdefault(env, EnvironmentSlice())
+    slice_.resources[gam_id] = entry
+
+
+def _drop_from_env_slice(state: State, env: str, gam_id: str) -> None:
+    slice_ = state.environments.get(env)
+    if slice_ is not None:
+        slice_.resources.pop(gam_id, None)
 
 
 def _write_gam_id_back(yaml_path: Path, gam_id: str, env: str) -> None:

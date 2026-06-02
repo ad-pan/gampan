@@ -40,7 +40,10 @@ class FakeClient:
         self.created.append((self._next_id, resource))
         return str(self._next_id)
 
-    def update(self, gam_id, resource) -> None:
+    def update(self, gam_id, resource, *, changed_paths=None) -> None:
+        # Executor passes ``changed_paths`` to drive lifecycle-vs-body
+        # dispatch in the real SOAP client; the fake just records the call.
+        del changed_paths
         self.updated.append((gam_id, resource))
 
     def delete(self, gam_id) -> None:
@@ -69,8 +72,9 @@ def test_create_persists_state(tmp_path: Path) -> None:
 
 def test_create_writes_gam_id_back_into_yaml(tmp_path: Path) -> None:
     """When ``root`` is supplied and the change carries a ``yaml_path``,
-    CREATE stamps ``_gam_id`` into the source file so subsequent imports
-    recognise the resource by id."""
+    CREATE stamps ``_gam_ids[env]`` into the source file so subsequent
+    imports recognise the resource by id. Single-env apply paths currently
+    write under the ``default`` env until Task 13 plumbs ``--env`` through."""
     from gampan.core.engine.diff import Action, Change
     from gampan.core.engine.planner import Plan
 
@@ -108,12 +112,15 @@ def test_create_writes_gam_id_back_into_yaml(tmp_path: Path) -> None:
     )
 
     body = yaml_file.read_text(encoding="utf-8")
-    assert "_gam_id: '101'" in body
-    # ``_gam_id`` should sit right after ``kind:`` so the file stays
+    # v1.x writes the env-keyed dict; the legacy scalar form is gone.
+    assert "_gam_ids:" in body
+    assert "default: '101'" in body
+    # ``_gam_ids`` should sit right after ``kind:`` so the file stays
     # readable and matches what ``gampan import`` would have written.
     lines = [ln.strip() for ln in body.splitlines() if ln.strip()]
     assert lines[0] == "kind: NativeStyle"
-    assert lines[1] == "_gam_id: '101'"
+    assert lines[1] == "_gam_ids:"
+    assert lines[2] == "default: '101'"
 
 
 def test_delete_skips_rpc_when_remote_already_archived(tmp_path: Path) -> None:
@@ -204,3 +211,116 @@ def test_failure_persists_partial_state(tmp_path: Path) -> None:
     assert "NativeStyle:NEW:a-test" not in state.resources
     assert "NativeStyle:NEW:b-test" not in state.resources
     assert "NativeStyle:NEW:c-test" not in state.resources
+
+
+# --- env-nested state writes (multi-env) ------------------------------------
+
+
+def test_create_writes_env_slice_with_kind_and_name_hint(tmp_path: Path) -> None:
+    """CREATE must populate ``state.environments[env].resources`` with kind
+    and name_hint set — otherwise ``scope_current_to_env`` filters the new
+    gam_id out on the next plan (kind=None → falsy), producing a phantom
+    duplicate CREATE on every subsequent run.
+    """
+    store = StateStore(tmp_path / "state.json")
+    store.save(State(schema_version=2, network_code="0"))
+
+    plan = build_plan(desired=[("NativeStyle:NEW:foo-test", _ns("foo"))], current={})
+    execute_plan(
+        plan, {"NativeStyle": FakeClient()}, store, tool_version="t", env="dev",
+    )
+
+    state = store.load()
+    slice_ = state.environments["dev"]
+    [(gam_id, entry)] = slice_.resources.items()
+    assert entry.kind == "NativeStyle"
+    assert entry.name_hint == "foo"
+    assert entry.gam_id == gam_id
+
+
+def test_update_writes_env_slice(tmp_path: Path) -> None:
+    """UPDATE must refresh the env-slice entry's checksum; otherwise drift
+    detection compares the freshly-updated remote against a stale slice
+    checksum on the next run."""
+    from gampan.core.engine.diff import Action, Change
+    from gampan.core.engine.planner import Plan
+    from gampan.core.state.schema import EnvironmentSlice, ResourceEntry
+
+    store = StateStore(tmp_path / "state.json")
+    pre_state = State(
+        schema_version=2,
+        network_code="0",
+        environments={
+            "dev": EnvironmentSlice(
+                resources={
+                    "200": ResourceEntry(
+                        gam_id="200",
+                        kind="NativeStyle",
+                        name_hint="foo",
+                        checksum_local="stale",
+                        checksum_remote="stale",
+                    )
+                }
+            )
+        },
+    )
+    store.save(pre_state)
+
+    desired = _ns("foo", html="<div>new</div>")
+    plan = Plan(changes=[
+        Change(
+            action=Action.UPDATE,
+            key="NativeStyle:200",
+            gam_id="200",
+            desired=desired,
+            current=_ns("foo"),
+        )
+    ])
+    execute_plan(plan, {"NativeStyle": FakeClient()}, store, tool_version="t", env="dev")
+
+    state = store.load()
+    entry = state.environments["dev"].resources["200"]
+    assert entry.kind == "NativeStyle"
+    assert entry.checksum_local == desired.checksum()
+
+
+def test_delete_removes_env_slice_entry(tmp_path: Path) -> None:
+    """DELETE must drop the env-slice entry; otherwise the next plan still
+    sees a managed gam_id and may propose to re-apply or detect drift."""
+    from gampan.core.engine.diff import Action, Change
+    from gampan.core.engine.planner import Plan
+    from gampan.core.state.schema import EnvironmentSlice, ResourceEntry
+
+    store = StateStore(tmp_path / "state.json")
+    pre_state = State(
+        schema_version=2,
+        network_code="0",
+        environments={
+            "dev": EnvironmentSlice(
+                resources={
+                    "300": ResourceEntry(
+                        gam_id="300",
+                        kind="NativeStyle",
+                        name_hint="bye",
+                        checksum_local="a",
+                        checksum_remote="a",
+                    )
+                }
+            )
+        },
+    )
+    store.save(pre_state)
+
+    plan = Plan(changes=[
+        Change(
+            action=Action.DELETE,
+            key="NativeStyle:300",
+            gam_id="300",
+            desired=None,
+            current=_ns("bye"),  # ACTIVE → executor will call client.delete
+        )
+    ])
+    execute_plan(plan, {"NativeStyle": FakeClient()}, store, tool_version="t", env="dev")
+
+    state = store.load()
+    assert "300" not in state.environments["dev"].resources

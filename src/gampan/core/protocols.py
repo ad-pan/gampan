@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, ClassVar, Protocol, Self, runtime_checkable
 
 
@@ -58,6 +59,29 @@ class Client(Protocol):
         """Create remote; return new gam_id."""
         ...
 
-    def update(self, gam_id: str, resource: Resource) -> None: ...
+    def update(
+        self,
+        gam_id: str,
+        resource: Resource,
+        *,
+        # ``Sequence`` (not ``list``) to dodge a name clash inside this
+        # Protocol — ``list`` inside the class body resolves to the ``.list``
+        # method above and trips mypy ``[valid-type]``.
+        changed_paths: Sequence[str] | None = None,
+    ) -> None:
+        """Apply *resource* to the remote at *gam_id*.
+
+        ``changed_paths`` carries the dot-paths of fields the diff engine
+        flagged as changed (e.g. ``["status"]``, ``["css", "html"]``).
+        Clients use it to call only the GAM endpoints whose concern matches
+        the change set — e.g. ``NativeStyle`` lifecycle (``status``) lives
+        on ``performNativeStyleAction`` while body fields live on
+        ``updateNativeStyles``. Calling the body endpoint with no body
+        change tickles a zeep response-parsing bug.
+
+        Legacy callers may pass ``None`` to preserve v1 behaviour (call
+        every endpoint conservatively).
+        """
+        ...
 
     def delete(self, gam_id: str) -> None: ...

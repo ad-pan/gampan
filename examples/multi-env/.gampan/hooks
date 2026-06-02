@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""Multi-env reference hook: kind-aware ``[dev] `` name prefix.
+
+Convention:
+
+- Prod resources carry the canonical name unchanged (e.g. ``article-card``).
+- Dev resources are decorated with a ``[dev] `` prefix on GAM's ``name`` field
+  (e.g. ``[dev] article-card``) for ``NativeStyle`` and ``NativeFormat`` kinds.
+- ``CreativeTemplate`` is shared across envs (same GAM resource serves both),
+  so the hook leaves it untouched regardless of env.
+
+The hook responds to three subcommands:
+
+- ``transform`` (forward): applies the decoration on the way to GAM.
+- ``reverse-transform`` (during ``gampan import``): strips the decoration so
+  the canonical YAML carries the prod-form name.
+- Anything else: exit 64 → gampan falls back to default (pass-through).
+"""
+
+import json
+import sys
+
+DECORATED_KINDS = {"NativeStyle", "NativeFormat"}
+DEV_PREFIX = "[dev] "
+
+
+def main() -> None:
+    sub = sys.argv[1] if len(sys.argv) > 1 else ""
+    inp = json.load(sys.stdin)
+
+    if sub == "transform":
+        env = inp["environment"]
+        out = []
+        for r in inp["resources"]:
+            if r["kind"] in DECORATED_KINDS and env == "dev":
+                r["name"] = f"{DEV_PREFIX}{r['name']}"
+            out.append(r)
+        json.dump({"schema_version": 1, "resources": out}, sys.stdout)
+
+    elif sub == "reverse-transform":
+        env = inp["environment"]
+        out = []
+        for r in inp["resources"]:
+            if r["kind"] not in DECORATED_KINDS:
+                # CreativeTemplate (and any other shared kind) flows into both
+                # envs unchanged.
+                out.append(r)
+                continue
+            decorated = r["name"].startswith(DEV_PREFIX)
+            if env == "dev":
+                if not decorated:
+                    # This prod-form resource is not a dev variant — skip.
+                    continue
+                r["name"] = r["name"][len(DEV_PREFIX):]
+            else:  # env == "prod"
+                if decorated:
+                    # Dev-decorated resource — belongs to dev import, skip prod.
+                    continue
+            out.append(r)
+        json.dump({"schema_version": 1, "resources": out}, sys.stdout)
+
+    else:
+        sys.exit(64)  # subcommand not implemented; gampan falls back to default
+
+
+if __name__ == "__main__":
+    main()

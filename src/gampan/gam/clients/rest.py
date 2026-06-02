@@ -9,6 +9,7 @@ in v0.2 (tracked in the runbook).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from gampan.core.protocols import Resource
@@ -54,7 +55,13 @@ class CreativeTemplateRestClient:
             "Manage creative templates via the GAM UI for now; tracked for v0.2."
         )
 
-    def update(self, gam_id: str, resource: Resource) -> None:
+    def update(
+        self,
+        gam_id: str,
+        resource: Resource,
+        *,
+        changed_paths: Sequence[str] | None = None,
+    ) -> None:
         raise NotImplementedError(
             "CreativeTemplate.update is not exposed by the GAM REST Beta. "
             "v0.1 of gampan treats CreativeTemplate as read-only."
